@@ -1,0 +1,206 @@
+import { Check, X, Sparkles } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, Link } from 'react-router-dom';
+import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '../utils/plans';
+import { subscriptionAPI } from '../services/api';
+import { fetchMe } from '../store/authSlice';
+import DashboardLayout from '../components/layout/DashboardLayout';
+import Navbar from '../components/layout/Navbar';
+
+const COMPARE_ROWS = [
+  { label: 'Resume templates', free: '2', basic: '12+', pro: '55+', premium: '330+' },
+  { label: 'PDF export', free: true, basic: true, pro: true, premium: true },
+  { label: 'Color customization', free: false, basic: false, pro: true, premium: true },
+  { label: 'ATS checker', free: false, basic: false, pro: true, premium: true },
+  { label: 'Drag & drop sections', free: false, basic: false, pro: true, premium: true },
+  { label: 'Share link', free: false, basic: false, pro: false, premium: true },
+  { label: 'Cover letters', free: false, basic: false, pro: false, premium: true },
+];
+
+function CellValue({ value }) {
+  if (value === true) return <Check size={18} className="text-emerald-600 mx-auto" />;
+  if (value === false) return <X size={18} className="text-slate-300 mx-auto" />;
+  return <span className="text-sm font-medium text-slate-700">{value}</span>;
+}
+
+export default function PricingPage() {
+  const { user, token } = useSelector((s) => s.auth);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const currentPlan = user?.subscription?.plan || 'free';
+
+  const handleUpgrade = async (planId) => {
+    if (!token) {
+      navigate('/register');
+      return;
+    }
+    if (planId === 'free') return;
+    try {
+      await subscriptionAPI.upgrade(planId);
+      dispatch(fetchMe());
+      alert(`Upgraded to ${planId} plan! (Demo payment — integrate JazzCash / EasyPaisa or card gateway for production)`);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Upgrade failed');
+    }
+  };
+
+  const content = (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+      {/* Hero */}
+      <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold px-3 py-1 mb-4 border border-brand-100">
+          <Sparkles size={14} />
+          {CURRENCY_LABEL}
+        </span>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight">
+          Simple monthly plans
+        </h1>
+        <p className="text-slate-600 mt-4 text-base sm:text-lg leading-relaxed">
+          Start free, then upgrade when you need more templates and tools. Paid plans are billed per month in PKR.
+        </p>
+      </div>
+
+      {/* Plan cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-5 items-stretch mb-16 lg:mb-20">
+        {PLANS.map((plan) => {
+          const isCurrent = currentPlan === plan.id;
+          const isPopular = plan.popular;
+          return (
+            <div
+              key={plan.id}
+              className={`relative flex flex-col rounded-2xl border bg-white p-6 sm:p-7 transition-shadow ${
+                isPopular
+                  ? 'border-brand-500 shadow-lg shadow-brand-500/10 xl:scale-[1.03] xl:z-10'
+                  : 'border-slate-200 shadow-sm hover:shadow-md'
+              }`}
+            >
+              {isPopular && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold bg-brand-600 text-white px-4 py-1 rounded-full shadow-sm whitespace-nowrap">
+                  Most popular
+                </span>
+              )}
+
+              <div className="mb-5">
+                <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
+                <p className="text-sm text-slate-500 mt-1">{plan.tagline}</p>
+              </div>
+
+              <div className="mb-1">
+                <span className="text-4xl sm:text-[2.5rem] font-bold text-slate-900 tracking-tight">
+                  {formatPlanPrice(plan.price)}
+                </span>
+                {plan.price > 0 && (
+                  <span className="text-slate-500 text-sm font-medium ml-1">/ {BILLING_PERIOD_LABEL}</span>
+                )}
+              </div>
+              <div className="mb-4" />
+
+              <p className="text-sm font-medium text-brand-700 bg-brand-50/80 rounded-lg px-3 py-2 mb-5 border border-brand-100">
+                {plan.templates} templates included
+              </p>
+
+              <ul className="space-y-3 mb-8 flex-1">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600">
+                    <Check size={16} className="text-brand-600 shrink-0 mt-0.5" strokeWidth={2.5} />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                type="button"
+                disabled={isCurrent}
+                onClick={() => handleUpgrade(plan.id)}
+                className={
+                  isCurrent
+                    ? 'w-full py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-sm cursor-default'
+                    : isPopular
+                      ? 'app-btn-primary w-full !py-3 !rounded-xl'
+                      : 'app-btn-secondary w-full !py-3 !rounded-xl'
+                }
+              >
+                {isCurrent ? 'Current plan' : plan.price === 0 ? 'Get started free' : 'Upgrade now'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Compare table */}
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <div className="px-6 sm:px-8 py-5 border-b border-slate-200 bg-slate-50/80">
+          <h2 className="text-lg font-bold text-slate-900">Compare all features</h2>
+          <p className="text-sm text-slate-500 mt-1">See what each plan includes</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead>
+              <tr className="border-b border-slate-200 bg-white">
+                <th className="text-left py-4 px-6 font-medium text-slate-500 w-[40%]">Feature</th>
+                {PLANS.map((p) => (
+                  <th
+                    key={p.id}
+                    className={`py-4 px-4 text-center font-semibold min-w-[100px] ${
+                      p.popular ? 'text-brand-700 bg-brand-50/50' : 'text-slate-900'
+                    }`}
+                  >
+                    <span className="block">{p.name}</span>
+                    <span className="block text-xs font-normal text-slate-500 mt-0.5">
+                      {formatPlanPrice(p.price)}
+                      {p.price > 0 ? '/mo' : ''}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARE_ROWS.map((row, i) => (
+                <tr
+                  key={row.label}
+                  className={`border-b border-slate-100 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
+                >
+                  <td className="py-3.5 px-6 text-slate-700 font-medium">{row.label}</td>
+                  <td className="py-3.5 px-4 text-center">
+                    <CellValue value={row.free} />
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <CellValue value={row.basic} />
+                  </td>
+                  <td className="py-3.5 px-4 text-center bg-brand-50/30">
+                    <CellValue value={row.pro} />
+                  </td>
+                  <td className="py-3.5 px-4 text-center">
+                    <CellValue value={row.premium} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="text-center text-xs text-slate-500 mt-6 max-w-xl mx-auto leading-relaxed">
+        Prices shown in PKR (Rs.). Demo upgrades apply instantly; connect your payment provider for live billing.
+      </p>
+
+      {!token && (
+        <p className="text-center text-sm text-slate-600 mt-8">
+          <Link to="/register" className="font-semibold text-brand-600 hover:underline">
+            Create a free account
+          </Link>{' '}
+          — no card required to start.
+        </p>
+      )}
+    </div>
+  );
+
+  return token ? (
+    <DashboardLayout>{content}</DashboardLayout>
+  ) : (
+    <>
+      <Navbar />
+      <div className="bg-slate-50 min-h-screen">{content}</div>
+    </>
+  );
+}
