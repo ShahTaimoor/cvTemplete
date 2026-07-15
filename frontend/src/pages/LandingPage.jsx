@@ -51,15 +51,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-t border-slate-200 bg-brand-600">
+      <section className="border-t border-slate-200 bg-slate-600">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="text-white">
             <h2 className="text-2xl font-bold">Ready to create your resume?</h2>
-            <p className="text-brand-100 mt-2">Join free — no credit card required.</p>
+            <p className="text-slate-100 mt-2">Join free — no credit card required.</p>
           </div>
           <Link
             to="/register"
-            className="inline-flex items-center justify-center rounded-lg bg-white px-8 py-3 font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-white px-8 py-3 font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
             Get started
           </Link>
