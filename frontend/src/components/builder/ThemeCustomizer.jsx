@@ -33,7 +33,7 @@ export default function ThemeCustomizer({ theme, onChange, userPlan }) {
           <label className="text-sm text-slate-400">{label}</label>
           <input
             type="color"
-            value={theme?.[key] || '#2563eb'}
+            value={theme?.[key] || '#10b981'}
             onChange={(e) => onChange({ ...theme, [key]: e.target.value })}
             className="w-10 h-8 rounded cursor-pointer bg-transparent"
           />

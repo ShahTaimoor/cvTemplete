@@ -2,11 +2,11 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #1e40af;
+  --color-brand-50: #f0fdf4;
+  --color-brand-100: #dcfce7;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
@@ -37,8 +37,8 @@ body {
 }
 
 .resume-preview-root {
-  --resume-primary: #2563eb;
-  --resume-secondary: #1e40af;
+  --resume-primary: #10b981;
+  --resume-secondary: #047857;
   --resume-bg: #ffffff;
   font-family: var(--resume-font, Inter, sans-serif);
 }

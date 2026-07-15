@@ -6,7 +6,7 @@ import TemplateThumbnail from './TemplateThumbnail';
 
 export default function TemplateCard({ template, onSelect, selected }) {
   const preset = getTemplatePreset(template.slug);
-  const headerBg = preset.primary || '#2563eb';
+  const headerBg = preset.primary || '#10b981';
 
   const handleClick = () => {
     if (template.locked || !onSelect) return;
