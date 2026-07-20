@@ -64,7 +64,7 @@ body {
   @apply block text-sm font-medium text-slate-700 mb-1.5;
 }
 
-/* Premium Dark Theme Landing styles */
+/* Premiuzm Dark Theme Landing styles */
 .landing-dark-card {
   background: rgba(15, 23, 42, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
