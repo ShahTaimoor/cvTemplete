@@ -7,7 +7,7 @@ const coverLetterSchema = new mongoose.Schema(
     title: { type: String, default: 'Cover Letter' },
     templateSlug: { type: String, default: 'classic-blue' },
     theme: {
-      primaryColor: { type: String, default: '#2563eb' },
+      primaryColor: { type: String, default: '#747d8eff' },
       secondaryColor: { type: String, default: '#1e40af' },
       backgroundColor: { type: String, default: '#ffffff' },
       fontFamily: { type: String, default: 'Inter' },
