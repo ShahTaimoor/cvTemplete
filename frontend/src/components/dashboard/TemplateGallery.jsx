@@ -4,6 +4,7 @@ import {
   TEMPLATE_FILTERS,
   COUNTRY_FILTERS,
   REGION_FILTERS,
+  PLAN_FILTERS,
   filterTemplates,
 } from '../../config/templateFilters';
 import { withTemplateSlug } from '../../data/sampleResume';
@@ -20,13 +21,14 @@ export default function TemplateGallery({
   const [filter, setFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
   const [regionFilter, setRegionFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [previewSlug, setPreviewSlug] = useState(null);
   const [showCountries, setShowCountries] = useState(false);
 
   const filtered = useMemo(
-    () => filterTemplates(templates, filter, search, countryFilter, regionFilter),
-    [templates, filter, search, countryFilter, regionFilter]
+    () => filterTemplates(templates, filter, search, countryFilter, regionFilter, planFilter),
+    [templates, filter, search, countryFilter, regionFilter, planFilter]
   );
 
   const previewTemplate = templates.find((t) => t.slug === previewSlug);
@@ -36,6 +38,7 @@ export default function TemplateGallery({
     filter !== 'all' ? TEMPLATE_FILTERS.find((f) => f.id === filter)?.label : null,
     countryFilter !== 'all' ? COUNTRY_FILTERS.find((f) => f.id === countryFilter)?.label : null,
     regionFilter !== 'all' ? REGION_FILTERS.find((f) => f.id === regionFilter)?.label : null,
+    planFilter !== 'all' ? PLAN_FILTERS.find((f) => f.id === planFilter)?.label : null,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -133,6 +136,23 @@ export default function TemplateGallery({
         ))}
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-3">
+        {PLAN_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setPlanFilter(f.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+              planFilter === f.id
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <p className="text-xs text-slate-500 mb-3">
         Showing {filtered.length} of {allCount} templates
         {activeLabel ? ` (${activeLabel})` : ''}
@@ -149,6 +169,7 @@ export default function TemplateGallery({
               setFilter('all');
               setCountryFilter('all');
               setRegionFilter('all');
+              setPlanFilter('all');
               setSearch('');
             }}
           >

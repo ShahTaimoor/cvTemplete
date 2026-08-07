@@ -15,6 +15,14 @@ export const TEMPLATE_FILTERS = [
 
 export { COUNTRY_FILTERS, REGION_FILTERS };
 
+export const PLAN_FILTERS = [
+  { id: 'all', label: 'All Plans' },
+  { id: 'free', label: 'Free' },
+  { id: 'basic', label: 'Basic' },
+  { id: 'pro', label: 'Pro' },
+  { id: 'premium', label: 'Premium' },
+];
+
 const REGIONAL_LAYOUTS = [
   'us-resume', 'uk-cv', 'eu-cv', 'de-cv', 'fr-cv', 'pk-cv', 'sa-cv', 'ae-cv',
   'in-cv', 'ca-cv', 'au-cv', 'jp-cv', 'ng-cv', 'br-cv', 'za-cv', 'my-cv',
@@ -51,6 +59,10 @@ export function resolveTemplateRegion(template) {
   return template?.region || getTemplatePreset(template?.slug).region;
 }
 
+export function resolveTemplatePlan(template) {
+  return template?.planRequired || 'free';
+}
+
 export function matchesTemplateFilter(template, filterId) {
   if (filterId === 'all') return true;
   const layout = resolveTemplateLayout(template);
@@ -68,12 +80,18 @@ export function matchesRegionFilter(template, regionId) {
   return resolveTemplateRegion(template) === regionId;
 }
 
-export function filterTemplates(templates, filterId, search = '', countryId = 'all', regionId = 'all') {
+export function matchesPlanFilter(template, planId) {
+  if (!planId || planId === 'all') return true;
+  return resolveTemplatePlan(template) === planId;
+}
+
+export function filterTemplates(templates, filterId, search = '', countryId = 'all', regionId = 'all', planId = 'all') {
   const q = search.toLowerCase().trim();
   return templates.filter((t) => {
     if (!matchesTemplateFilter(t, filterId)) return false;
     if (!matchesCountryFilter(t, countryId)) return false;
     if (!matchesRegionFilter(t, regionId)) return false;
+    if (!matchesPlanFilter(t, planId)) return false;
     if (!q) return true;
     const layout = resolveTemplateLayout(t);
     return (
