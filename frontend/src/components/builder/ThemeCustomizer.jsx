@@ -27,10 +27,10 @@ export default function ThemeCustomizer({ theme, onChange, userPlan }) {
 
   return (
     <div className="space-y-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
-      <h3 className="font-medium text-slate-200">Theme Colors</h3>
+      <h3 className="font-semibold text-slate-900">Theme Colors</h3>
       {colors.map(({ key, label }) => (
         <div key={key} className="flex items-center justify-between gap-3">
-          <label className="text-sm text-slate-400">{label}</label>
+          <label className="text-sm text-slate-600">{label}</label>
           <input
             type="color"
             value={theme?.[key] || '#2563eb'}
@@ -40,7 +40,7 @@ export default function ThemeCustomizer({ theme, onChange, userPlan }) {
         </div>
       ))}
       <div>
-        <label className="text-sm text-slate-400 block mb-1">Font</label>
+        <label className="text-sm text-slate-600 block mb-1">Font</label>
         <select
           value={theme?.fontFamily || 'Inter'}
           onChange={(e) => onChange({ ...theme, fontFamily: e.target.value })}

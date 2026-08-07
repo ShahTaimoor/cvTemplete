@@ -5,7 +5,6 @@ import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '..
 import { subscriptionAPI } from '../services/api';
 import { fetchMe } from '../store/authSlice';
 import DashboardLayout from '../components/layout/DashboardLayout';
-import Navbar from '../components/layout/Navbar';
 
 const COMPARE_ROWS = [
   { label: 'Resume templates', free: '2', basic: '12+', pro: '55+', premium: '330+' },
@@ -198,9 +197,6 @@ export default function PricingPage() {
   return token ? (
     <DashboardLayout>{content}</DashboardLayout>
   ) : (
-    <>
-      <Navbar />
-      <div className="bg-slate-50 min-h-screen">{content}</div>
-    </>
+    <div className="bg-slate-50 min-h-screen">{content}</div>
   );
 }
