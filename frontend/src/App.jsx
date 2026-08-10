@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Navbar from './components/layout/Navbar';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import { ToastProvider } from './context/ToastProvider';
+import { ConfirmDialogProvider } from './context/ConfirmDialogProvider';
 import { fetchMe } from './store/authSlice';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -77,7 +79,11 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <ToastProvider>
+        <ConfirmDialogProvider>
+          <AppRoutes />
+        </ConfirmDialogProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }
