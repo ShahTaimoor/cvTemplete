@@ -19,7 +19,7 @@ function getCaptureBackground(element) {
 }
 
 const captureOptions = (element) => ({
-  pixelRatio: 2,
+  pixelRatio: 3,
   backgroundColor: getCaptureBackground(element),
   cacheBust: true,
   width: element.scrollWidth,
@@ -79,7 +79,7 @@ function addPdfPagesFromCanvas(pdf, canvas, imgData, element) {
     );
 
     const sliceMm = (sliceHeightPx * imgWidth) / canvas.width;
-    const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+    const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.97);
 
     if (pageIndex > 0) pdf.addPage();
     pdf.addImage(sliceData, 'JPEG', 0, 0, imgWidth, sliceMm);
@@ -96,7 +96,7 @@ export async function exportElementToPdf(element, filename = 'resume.pdf') {
   if (!element) throw new Error('Preview element not found');
 
   const canvas = await captureToCanvas(element);
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
+  const imgData = canvas.toDataURL('image/jpeg', 0.97);
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
