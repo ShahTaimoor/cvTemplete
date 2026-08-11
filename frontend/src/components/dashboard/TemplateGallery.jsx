@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, Globe } from 'lucide-react';
 import {
   TEMPLATE_FILTERS,
@@ -10,6 +10,23 @@ import {
 import { withTemplateSlug } from '../../data/sampleResume';
 import TemplateCard from '../templates/TemplateCard';
 import ResumePreview from '../resume/ResumePreview';
+
+const PAGE_SIZE = 24;
+
+/** Windowed page numbers with ellipses, e.g. [1, '…', 4, 5, 6, '…', 15] */
+function getPageNumbers(current, total) {
+  const delta = 1;
+  const range = [];
+  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
+    range.push(i);
+  }
+  const pages = [1];
+  if (range[0] > 2) pages.push('…');
+  pages.push(...range);
+  if (range[range.length - 1] < total - 1) pages.push('…');
+  if (total > 1) pages.push(total);
+  return pages;
+}
 
 export default function TemplateGallery({
   templates,
@@ -25,11 +42,28 @@ export default function TemplateGallery({
   const [search, setSearch] = useState('');
   const [previewSlug, setPreviewSlug] = useState(null);
   const [showCountries, setShowCountries] = useState(false);
+  const [page, setPage] = useState(1);
+  const gridTopRef = useRef(null);
 
   const filtered = useMemo(
     () => filterTemplates(templates, filter, search, countryFilter, regionFilter, planFilter),
     [templates, filter, search, countryFilter, regionFilter, planFilter]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, countryFilter, regionFilter, planFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    gridTopRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [currentPage]);
+
+  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const previewTemplate = templates.find((t) => t.slug === previewSlug);
   const allCount = totalCount ?? templates.length;
@@ -153,9 +187,10 @@ export default function TemplateGallery({
         ))}
       </div>
 
-      <p className="text-xs text-slate-500 mb-3">
-        Showing {filtered.length} of {allCount} templates
-        {activeLabel ? ` (${activeLabel})` : ''}
+      <p ref={gridTopRef} className="text-xs text-slate-500 mb-3">
+        Showing {rangeStart}–{rangeEnd} of {filtered.length} templates
+        {filtered.length !== allCount ? ` (${allCount} total)` : ''}
+        {activeLabel ? ` · ${activeLabel}` : ''}
         {!compact && ' — click Preview for sample data'}
       </p>
 
@@ -179,7 +214,7 @@ export default function TemplateGallery({
       )}
 
       <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
-        {filtered.map((t) => (
+        {pageItems.map((t) => (
           <div key={t.slug || t._id} className="space-y-2">
             <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
             {!compact && (
@@ -194,6 +229,47 @@ export default function TemplateGallery({
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+          >
+            Prev
+          </button>
+          {getPageNumbers(currentPage, totalPages).map((n, i) =>
+            n === '…' ? (
+              <span key={`ellipsis-${i}`} className="px-1.5 text-xs text-slate-400">
+                …
+              </span>
+            ) : (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setPage(n)}
+                className={`min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-medium border ${
+                  n === currentPage
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {n}
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {previewSlug && previewTemplate && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">

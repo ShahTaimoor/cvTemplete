@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Plus, Trash2, FileText, Copy, Mail, Sparkles, Crown } from 'lucide-react';
+import { Plus, Trash2, FileText, Copy, Mail, Crown } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI } from '../services/api';
-import TemplateGallery from '../components/dashboard/TemplateGallery';
+import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
@@ -114,29 +114,14 @@ export default function DashboardPage() {
         </div>
 
         {showNew && (
-          <div className="app-card p-6 mb-8">
-            <div className="flex items-start gap-3 mb-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                <Sparkles size={20} />
-              </span>
-              <div>
-                <h2 className="font-semibold text-slate-900">Choose a template</h2>
-                <p className="text-sm text-slate-600 mt-0.5">
-                  {list.length === 0
-                    ? 'Your first resume includes sample content for a quick professional preview.'
-                    : 'Filter by layout or search by industry.'}
-                </p>
-              </div>
-            </div>
-            <TemplateGallery
-              templates={templates}
-              selectedSlug={selectedSlug}
-              onSelect={(tpl) => !tpl.locked && setSelectedSlug(tpl.slug)}
-            />
-            <button type="button" onClick={createResume} className="app-btn-primary mt-6">
-              Create with selected template
-            </button>
-          </div>
+          <TemplatePickerModal
+            templates={templates}
+            selectedSlug={selectedSlug}
+            onSelect={(tpl) => !tpl.locked && setSelectedSlug(tpl.slug)}
+            onClose={() => setShowNew(false)}
+            onCreate={createResume}
+            isFirstResume={list.length === 0}
+          />
         )}
 
         {plan === 'premium' && coverLetters.length > 0 && (
