@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { protect } from '../middleware/auth.js';
 import { uploadImage, isCloudinaryConfigured } from '../services/cloudinaryService.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadDir = path.join(__dirname, '../../uploads');
@@ -31,7 +32,7 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post('/photo', protect, upload.single('photo'), async (req, res) => {
+router.post('/photo', protect, upload.single('photo'), asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
@@ -47,6 +48,6 @@ router.post('/photo', protect, upload.single('photo'), async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-});
+}));
 
 export default router;

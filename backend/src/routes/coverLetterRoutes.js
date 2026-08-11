@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import { getSampleCoverLetterPayload } from '../utils/sampleResumeData.js';
 import { buildCoverLetterDocx } from '../services/docxService.js';
 import { exportLimiter } from '../middleware/security.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 router.use(protect);
@@ -18,12 +19,12 @@ const requirePremium = (req, res, next) => {
 
 router.use(requirePremium);
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const letters = await CoverLetter.find({ user: req.user._id }).sort({ updatedAt: -1 });
   res.json(letters);
-});
+}));
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const sample = getSampleCoverLetterPayload();
   let personal = sample.personal || {};
   let theme;
@@ -60,15 +61,15 @@ router.post('/', async (req, res) => {
     closing: sample.closing,
   });
   res.status(201).json(letter);
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   res.json(letter);
-});
+}));
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   const fields = [
@@ -80,20 +81,20 @@ router.put('/:id', async (req, res) => {
   });
   await letter.save();
   res.json(letter);
-});
+}));
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await CoverLetter.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
-});
+}));
 
-router.post('/:id/docx', exportLimiter, async (req, res) => {
+router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   const buffer = await buildCoverLetterDocx(letter);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="cover-letter.docx"`);
   res.send(buffer);
-});
+}));
 
 export default router;

@@ -20,6 +20,21 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Defense-in-depth: asyncHandler (see routes/*) forwards route-level errors to
+// the error middleware below, but this catches anything unexpected that gets
+// missed (e.g. an error thrown outside the request cycle) so the process
+// logs and survives instead of crashing the whole app for every user.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error('Unhandled promise rejection:', err);
+  captureException(err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  captureException(err);
+});
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -47,7 +62,18 @@ setupExpressErrorHandler(app);
 app.use((err, _req, res, _next) => {
   console.error(err);
   captureException(err);
-  res.status(500).json({ message: err.message || 'Server error' });
+
+  // Malformed input (e.g. an invalid ObjectId in a :id param) is a client
+  // error, not a server fault — and the raw CastError message exposes
+  // internal model/path names, so give it a clean 400 instead of a 500.
+  if (err.name === 'CastError') {
+    return res.status(400).json({ message: 'Invalid ID format' });
+  }
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ message: err.message });
+  }
+
+  res.status(err.statusCode || 500).json({ message: err.message || 'Server error' });
 });
 
 const PORT = process.env.PORT || 5000;

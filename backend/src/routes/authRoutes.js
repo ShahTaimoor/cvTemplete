@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import { generateToken } from '../utils/generateToken.js';
 import { protect } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/security.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.post(
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
   ],
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -34,13 +35,13 @@ router.post(
       subscription: user.subscription,
       token: generateToken(user._id),
     });
-  }
+  })
 );
 
 router.post(
   '/login',
   [body('email').isEmail(), body('password').notEmpty()],
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -56,11 +57,11 @@ router.post(
       subscription: user.subscription,
       token: generateToken(user._id),
     });
-  }
+  })
 );
 
-router.get('/me', protect, async (req, res) => {
+router.get('/me', protect, asyncHandler(async (req, res) => {
   res.json(req.user);
-});
+}));
 
 export default router;

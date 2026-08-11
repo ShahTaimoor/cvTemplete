@@ -8,6 +8,7 @@ import { analyzeResume } from '../services/atsService.js';
 import { buildResumeDocx } from '../services/docxService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
 import { exportLimiter } from '../middleware/security.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 router.use(protect);
@@ -24,14 +25,14 @@ const resumeSnapshot = (doc) => {
   return o;
 };
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const resumes = await Resume.find({ user: req.user._id })
     .sort({ updatedAt: -1 })
     .select('-__v');
   res.json(resumes);
-});
+}));
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const slug = req.body.templateSlug || 'classic-blue';
   const template = await Template.findOne({ slug });
   const plan = req.user.subscription?.plan || 'free';
@@ -59,15 +60,15 @@ router.post('/', async (req, res) => {
     certifications: sample.certifications,
   });
   res.status(201).json(resume);
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   res.json(resume);
-});
+}));
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
 
@@ -104,9 +105,9 @@ router.put('/:id', async (req, res) => {
   resume.lastAutoSavedAt = new Date();
   await resume.save();
   res.json(resume);
-});
+}));
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const resume = await Resume.findOneAndDelete({
     _id: req.params.id,
     user: req.user._id,
@@ -114,9 +115,9 @@ router.delete('/:id', async (req, res) => {
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   await ResumeVersion.deleteMany({ resume: req.params.id });
   res.json({ message: 'Resume deleted' });
-});
+}));
 
-router.post('/:id/duplicate', async (req, res) => {
+router.post('/:id/duplicate', asyncHandler(async (req, res) => {
   const source = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!source) return res.status(404).json({ message: 'Resume not found' });
   const snap = resumeSnapshot(source);
@@ -128,17 +129,17 @@ router.post('/:id/duplicate', async (req, res) => {
     shareToken: undefined,
   });
   res.status(201).json(copy);
-});
+}));
 
-router.get('/:id/versions', async (req, res) => {
+router.get('/:id/versions', asyncHandler(async (req, res) => {
   const versions = await ResumeVersion.find({
     resume: req.params.id,
     user: req.user._id,
   }).sort({ createdAt: -1 });
   res.json(versions);
-});
+}));
 
-router.post('/:id/versions', async (req, res) => {
+router.post('/:id/versions', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   const version = await ResumeVersion.create({
@@ -148,9 +149,9 @@ router.post('/:id/versions', async (req, res) => {
     snapshot: resumeSnapshot(resume),
   });
   res.status(201).json(version);
-});
+}));
 
-router.post('/:id/versions/:versionId/restore', async (req, res) => {
+router.post('/:id/versions/:versionId/restore', asyncHandler(async (req, res) => {
   const version = await ResumeVersion.findOne({
     _id: req.params.versionId,
     resume: req.params.id,
@@ -161,9 +162,9 @@ router.post('/:id/versions/:versionId/restore', async (req, res) => {
   Object.assign(resume, version.snapshot);
   await resume.save();
   res.json(resume);
-});
+}));
 
-router.post('/:id/ats-check', async (req, res) => {
+router.post('/:id/ats-check', asyncHandler(async (req, res) => {
   const plan = req.user.subscription?.plan || 'free';
   if (!['pro', 'premium'].includes(plan)) {
     return res.status(403).json({ message: 'ATS checker requires Pro plan or higher' });
@@ -171,9 +172,9 @@ router.post('/:id/ats-check', async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   res.json(analyzeResume(resume));
-});
+}));
 
-router.post('/:id/share', async (req, res) => {
+router.post('/:id/share', asyncHandler(async (req, res) => {
   const plan = req.user.subscription?.plan || 'free';
   if (plan !== 'premium') {
     return res.status(403).json({ message: 'Share link requires Premium plan' });
@@ -184,9 +185,9 @@ router.post('/:id/share', async (req, res) => {
   await resume.save();
   const base = process.env.CLIENT_URL || 'http://localhost:5173';
   res.json({ shareUrl: `${base}/share/${resume.shareToken}` });
-});
+}));
 
-router.post('/:id/docx', exportLimiter, async (req, res) => {
+router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   const buffer = await buildResumeDocx(resume);
@@ -196,6 +197,6 @@ router.post('/:id/docx', exportLimiter, async (req, res) => {
     `attachment; filename="${(resume.title || 'resume').replace(/\s+/g, '-')}.docx"`
   );
   res.send(buffer);
-});
+}));
 
 export default router;

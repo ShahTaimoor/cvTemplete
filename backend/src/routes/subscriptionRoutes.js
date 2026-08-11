@@ -2,6 +2,7 @@ import express from 'express';
 import { PLANS } from '../config/plans.js';
 import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
@@ -9,16 +10,16 @@ router.get('/plans', (_req, res) => {
   res.json(Object.values(PLANS));
 });
 
-router.get('/current', protect, async (req, res) => {
+router.get('/current', protect, asyncHandler(async (req, res) => {
   const plan = req.user.subscription?.plan || 'free';
   res.json({
     plan,
     config: PLANS[plan],
     subscription: req.user.subscription,
   });
-});
+}));
 
-router.post('/upgrade', protect, async (req, res) => {
+router.post('/upgrade', protect, asyncHandler(async (req, res) => {
   const { planId } = req.body;
   if (!PLANS[planId] || planId === 'free') {
     return res.status(400).json({ message: 'Invalid plan' });
@@ -37,6 +38,6 @@ router.post('/upgrade', protect, async (req, res) => {
     subscription: user.subscription,
     plan: PLANS[planId],
   });
-});
+}));
 
 export default router;
