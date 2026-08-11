@@ -7,10 +7,14 @@ import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI } from '../services/api';
 import TemplateGallery from '../components/dashboard/TemplateGallery';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { useConfirm } from '../hooks/useConfirm';
+import { useToast } from '../hooks/useToast';
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const confirmDialog = useConfirm();
+  const toast = useToast();
   const { list } = useSelector((s) => s.resume);
   const { user } = useSelector((s) => s.auth);
   const { items: templates } = useSelector((s) => s.templates);
@@ -50,9 +54,16 @@ export default function DashboardPage() {
   };
 
   const deleteResume = async (id) => {
-    if (!confirm('Delete this resume?')) return;
+    const ok = await confirmDialog({
+      title: 'Delete this resume?',
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
     await resumeAPI.remove(id);
     dispatch(fetchResumes());
+    toast.success('Resume deleted');
   };
 
   const newCoverLetter = async (resumeId) => {

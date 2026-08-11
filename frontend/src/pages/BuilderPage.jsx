@@ -9,6 +9,8 @@ import ResumeForm from '../components/builder/ResumeForm';
 import ResumePreview from '../components/resume/ResumePreview';
 import TemplateGallery from '../components/dashboard/TemplateGallery';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { useConfirm } from '../hooks/useConfirm';
+import { useToast } from '../hooks/useToast';
 import { getTemplatePreset } from '../config/templates';
 import { exportElementToPdf, exportElementToPng } from '../utils/exportPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -16,6 +18,8 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 export default function BuilderPage() {
   const { id } = useParams();
   const dispatch = useDispatch();
+  const confirmDialog = useConfirm();
+  const toast = useToast();
   const { current, saving, lastSaved } = useSelector((s) => s.resume);
   const { user } = useSelector((s) => s.auth);
   const { items: templates } = useSelector((s) => s.templates);
@@ -148,17 +152,31 @@ export default function BuilderPage() {
   };
 
   const saveVersion = async () => {
-    const name = prompt('Version name (e.g. Google application):', `v${versions.length + 1}`);
+    const name = await confirmDialog({
+      title: 'Save version',
+      inputMode: true,
+      inputLabel: 'Version name (e.g. Google application)',
+      defaultValue: `v${versions.length + 1}`,
+      confirmLabel: 'Save',
+    });
     if (!name) return;
     const { data } = await resumeAPI.saveVersion(id, { name });
     setVersions((v) => [data, ...v]);
+    toast.success(`Version saved as "${name}"`);
   };
 
   const restoreVersion = async (versionId) => {
-    if (!confirm('Restore this version? Current content will be replaced.')) return;
+    const ok = await confirmDialog({
+      title: 'Restore this version?',
+      message: 'Current content will be replaced.',
+      confirmLabel: 'Restore',
+      destructive: true,
+    });
+    if (!ok) return;
     const { data } = await resumeAPI.restoreVersion(id, versionId);
     setLocalResume(data);
     dispatch(setCurrentResume(data));
+    toast.success('Version restored');
   };
 
   const createCoverLetter = async () => {
