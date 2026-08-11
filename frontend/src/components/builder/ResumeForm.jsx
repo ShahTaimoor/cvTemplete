@@ -47,7 +47,7 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
   };
 
   return (
-    <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
+    <div className="space-y-6">
       <div>
         <label className="app-label">Resume Title</label>
         <input {...register('title')} className="app-input" />

@@ -91,7 +91,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
 
   return (
     <div className={`flex bg-slate-50 ${fullHeight ? 'h-screen' : 'min-h-screen'}`}>
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white sticky top-0 h-screen overflow-y-auto">
         <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200">
           <Link to="/dashboard" className="flex items-center gap-2 font-bold text-slate-900">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
