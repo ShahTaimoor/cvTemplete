@@ -5,6 +5,7 @@ import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '..
 import { subscriptionAPI } from '../services/api';
 import { fetchMe } from '../store/authSlice';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import { useToast } from '../hooks/useToast';
 
 const COMPARE_ROWS = [
   { label: 'Resume templates', free: '2', basic: '12+', pro: '55+', premium: '330+' },
@@ -26,6 +27,7 @@ export default function PricingPage() {
   const { user, token } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const toast = useToast();
   const currentPlan = user?.subscription?.plan || 'free';
 
   const handleUpgrade = async (planId) => {
@@ -37,9 +39,10 @@ export default function PricingPage() {
     try {
       await subscriptionAPI.upgrade(planId);
       dispatch(fetchMe());
-      alert(`Upgraded to ${planId} plan! (Demo payment — integrate JazzCash / EasyPaisa or card gateway for production)`);
+      const planName = PLANS.find((p) => p.id === planId)?.name || planId;
+      toast.success(`Upgraded to ${planName} successfully!`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Upgrade failed');
+      toast.error(err.response?.data?.message || 'Upgrade failed');
     }
   };
 

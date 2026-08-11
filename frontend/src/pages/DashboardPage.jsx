@@ -39,7 +39,7 @@ export default function DashboardPage() {
       });
       navigate(`/builder/${data._id}`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not create resume');
+      toast.error(err.response?.data?.message || 'Could not create resume');
     }
   };
 
@@ -49,7 +49,7 @@ export default function DashboardPage() {
       dispatch(fetchResumes());
       navigate(`/builder/${data._id}`);
     } catch {
-      alert('Duplicate failed');
+      toast.error('Duplicate failed');
     }
   };
 
@@ -71,7 +71,7 @@ export default function DashboardPage() {
       const { data } = await coverLetterAPI.create({ resumeId });
       navigate(`/cover-letter/${data._id}`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Premium required for cover letters');
+      toast.error(err.response?.data?.message || 'Premium required for cover letters');
     }
   };
 

@@ -4,8 +4,10 @@ import DynamicListField from './DynamicListField';
 import ThemeCustomizer from './ThemeCustomizer';
 import SectionOrder from './SectionOrder';
 import { uploadAPI } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 
 export default function ResumeForm({ resume, onUpdate, userPlan }) {
+  const toast = useToast();
   const { register, watch, reset } = useForm({ defaultValues: resume });
   const resumeRef = useRef(resume);
   resumeRef.current = resume;
@@ -42,7 +44,7 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
       const r = resumeRef.current;
       onUpdate({ ...r, personal: { ...r.personal, photo: url } });
     } catch {
-      alert('Photo upload failed. Configure Cloudinary or use local storage.');
+      toast.error('Photo upload failed. Configure Cloudinary or use local storage.');
     }
   };
 

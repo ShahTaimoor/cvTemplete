@@ -102,14 +102,14 @@ export default function BuilderPage() {
         },
       });
     } catch (err) {
-      alert(err.response?.data?.message || 'Template switch failed');
+      toast.error(err.response?.data?.message || 'Template switch failed');
     }
   };
 
   const downloadPdf = async () => {
     const el = getPreviewEl();
     if (!el) {
-      alert('Switch to Preview tab first, then download PDF.');
+      toast.info('Switch to Preview tab first, then download PDF.');
       return;
     }
     setExporting(true);
@@ -118,7 +118,7 @@ export default function BuilderPage() {
       await new Promise((r) => setTimeout(r, 400));
       await exportElementToPdf(getPreviewEl(), safeFilename('pdf'));
     } catch (err) {
-      alert(err.message || 'PDF export failed');
+      toast.error(err.message || 'PDF export failed');
     } finally {
       setExporting(false);
     }
@@ -129,14 +129,14 @@ export default function BuilderPage() {
       const { data } = await resumeAPI.docx(id);
       downloadBlob(data, `${localResume?.title || 'resume'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     } catch {
-      alert('DOCX export failed');
+      toast.error('DOCX export failed');
     }
   };
 
   const downloadPng = async () => {
     const el = getPreviewEl();
     if (!el) {
-      alert('Switch to Preview tab first, then download PNG.');
+      toast.info('Switch to Preview tab first, then download PNG.');
       return;
     }
     setExporting(true);
@@ -145,7 +145,7 @@ export default function BuilderPage() {
       await new Promise((r) => setTimeout(r, 400));
       await exportElementToPng(getPreviewEl(), safeFilename('png'));
     } catch (err) {
-      alert(err.message || 'PNG export failed');
+      toast.error(err.message || 'PNG export failed');
     } finally {
       setExporting(false);
     }
@@ -184,7 +184,7 @@ export default function BuilderPage() {
       const { data } = await coverLetterAPI.create({ resumeId: id });
       window.location.href = `/cover-letter/${data._id}`;
     } catch (err) {
-      alert(err.response?.data?.message || 'Cover letter requires Premium');
+      toast.error(err.response?.data?.message || 'Cover letter requires Premium');
     }
   };
 
@@ -193,7 +193,7 @@ export default function BuilderPage() {
       const { data } = await resumeAPI.atsCheck(id);
       setAtsResult(data);
     } catch (err) {
-      alert(err.response?.data?.message || 'ATS check unavailable');
+      toast.error(err.response?.data?.message || 'ATS check unavailable');
     }
   };
 
@@ -201,9 +201,9 @@ export default function BuilderPage() {
     try {
       const { data } = await resumeAPI.share(id);
       navigator.clipboard.writeText(data.shareUrl);
-      alert('Share link copied!');
+      toast.success('Share link copied!');
     } catch (err) {
-      alert(err.response?.data?.message || 'Share requires Premium');
+      toast.error(err.response?.data?.message || 'Share requires Premium');
     }
   };
 
