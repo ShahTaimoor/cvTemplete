@@ -36,6 +36,8 @@ export const resumeAPI = {
   docx: (id) => api.post(`/resumes/${id}/docx`, {}, { responseType: 'blob' }),
   atsCheck: (id) => api.post(`/resumes/${id}/ats-check`),
   share: (id) => api.post(`/resumes/${id}/share`),
+  trackDownload: (id, format) => api.post(`/resumes/${id}/track-download`, { format }),
+  analytics: (id) => api.get(`/resumes/${id}/analytics`),
 };
 
 export const coverLetterAPI = {

@@ -2,6 +2,7 @@ import express from 'express';
 import Resume from '../models/Resume.js';
 import ResumeVersion from '../models/ResumeVersion.js';
 import Template from '../models/Template.js';
+import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
 import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAccess.js';
 import { analyzeResume } from '../services/atsService.js';
@@ -9,6 +10,7 @@ import { buildResumeDocx } from '../services/docxService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { buildDailyTimeline, timelineStartDate } from '../utils/analytics.js';
 
 const router = express.Router();
 router.use(protect);
@@ -201,6 +203,47 @@ router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
     `attachment; filename="${(resume.title || 'resume').replace(/\s+/g, '-')}.docx"`
   );
   res.send(buffer);
+
+  // Fire-and-forget: never let analytics logging affect the export response.
+  AnalyticsEvent.create({ resume: resume._id, type: 'download', format: 'docx' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
+}));
+
+// PDF/PNG exports happen entirely client-side (html-to-image + jsPDF) — no
+// server round-trip occurs for them, so the frontend calls this directly
+// after a successful export to log the download.
+router.post('/:id/track-download', asyncHandler(async (req, res) => {
+  const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id }).select('_id');
+  if (!resume) return res.status(404).json({ message: 'Resume not found' });
+  const format = ['pdf', 'png'].includes(req.body.format) ? req.body.format : undefined;
+  await AnalyticsEvent.create({ resume: resume._id, type: 'download', format });
+  res.status(201).json({ ok: true });
+}));
+
+router.get('/:id/analytics', asyncHandler(async (req, res) => {
+  const plan = req.user.subscription?.plan || 'free';
+  if (!['pro', 'premium'].includes(plan)) {
+    return res.status(403).json({ message: 'Resume analytics requires Pro plan or higher' });
+  }
+
+  const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id }).select('_id');
+  if (!resume) return res.status(404).json({ message: 'Resume not found' });
+
+  const DAYS = 30;
+  const since = timelineStartDate(DAYS);
+
+  const [totalViews, totalDownloads, recentEvents] = await Promise.all([
+    AnalyticsEvent.countDocuments({ resume: resume._id, type: 'view' }),
+    AnalyticsEvent.countDocuments({ resume: resume._id, type: 'download' }),
+    AnalyticsEvent.find({ resume: resume._id, createdAt: { $gte: since } }).select('type createdAt'),
+  ]);
+
+  res.json({
+    totalViews,
+    totalDownloads,
+    timeline: buildDailyTimeline(recentEvents, DAYS),
+  });
 }));
 
 export default router;

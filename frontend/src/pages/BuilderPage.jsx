@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Download, LayoutTemplate, CheckCircle, Share2, BarChart3, FileImage, FileType, History, Mail, X } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { Download, LayoutTemplate, CheckCircle, Share2, BarChart3, LineChart, FileImage, FileType, History, Mail, X } from 'lucide-react';
 import { fetchResume, setCurrentResume } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI, downloadBlob } from '../services/api';
 import ResumeForm from '../components/builder/ResumeForm';
 import ResumePreview from '../components/resume/ResumePreview';
 import TemplateGallery from '../components/dashboard/TemplateGallery';
+import AnalyticsModal from '../components/analytics/AnalyticsModal';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
@@ -29,6 +31,7 @@ export default function BuilderPage() {
   const [mobileTab, setMobileTab] = useState('edit');
   const [versions, setVersions] = useState([]);
   const [showVersions, setShowVersions] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef(null);
 
@@ -117,6 +120,7 @@ export default function BuilderPage() {
       if (mobileTab === 'edit') setMobileTab('preview');
       await new Promise((r) => setTimeout(r, 400));
       await exportElementToPdf(getPreviewEl(), safeFilename('pdf'));
+      resumeAPI.trackDownload(id, 'pdf').catch(() => {});
     } catch (err) {
       toast.error(err.message || 'PDF export failed');
     } finally {
@@ -144,6 +148,7 @@ export default function BuilderPage() {
       if (mobileTab === 'edit') setMobileTab('preview');
       await new Promise((r) => setTimeout(r, 400));
       await exportElementToPng(getPreviewEl(), safeFilename('png'));
+      resumeAPI.trackDownload(id, 'png').catch(() => {});
     } catch (err) {
       toast.error(err.message || 'PNG export failed');
     } finally {
@@ -252,6 +257,13 @@ export default function BuilderPage() {
           </button>
           <button type="button" onClick={() => setShowVersions(!showVersions)} className="app-btn-secondary !py-1.5 !px-2 sm:!px-3">
             <History size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(true)}
+            className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm"
+          >
+            <LineChart size={14} /> Analytics
           </button>
           {['pro', 'premium'].includes(plan) && (
             <button type="button" onClick={runAts} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
@@ -380,6 +392,12 @@ export default function BuilderPage() {
         <button type="button" onClick={downloadDocx} className="flex-1 app-btn-secondary !py-2 text-xs">DOCX</button>
         <button type="button" onClick={downloadPng} className="flex-1 app-btn-secondary !py-2 text-xs">PNG</button>
       </div>
+
+      <AnimatePresence>
+        {showAnalytics && (
+          <AnalyticsModal resumeId={id} plan={plan} onClose={() => setShowAnalytics(false)} />
+        )}
+      </AnimatePresence>
     </div>
     </DashboardLayout>
   );
