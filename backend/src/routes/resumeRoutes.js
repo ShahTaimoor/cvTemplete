@@ -15,6 +15,18 @@ import { buildDailyTimeline, timelineStartDate } from '../utils/analytics.js';
 const router = express.Router();
 router.use(protect);
 
+const THEME_KEYS = ['primaryColor', 'secondaryColor', 'backgroundColor', 'fontFamily'];
+
+// A theme object is only a genuine customization attempt if it actually
+// deviates from the active template's own default theme — switching
+// templates (or autosaving unrelated fields) always re-sends the current
+// theme verbatim, and that must not trip the plan gate below.
+const isThemeCustomized = (incomingTheme, defaultTheme) =>
+  THEME_KEYS.some((key) => {
+    const value = incomingTheme[key];
+    return value !== undefined && value !== defaultTheme?.[key];
+  });
+
 const resumeSnapshot = (doc) => {
   const o = doc.toObject ? doc.toObject() : { ...doc };
   delete o._id;
@@ -78,8 +90,14 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
 
   const plan = req.user.subscription?.plan || 'free';
+  let switchedTemplate = null;
 
-  if (req.body.templateSlug) {
+  // Only a genuine switch (a different slug than what's already stored)
+  // should re-validate against the plan — autosave always resends the
+  // resume's current templateSlug verbatim, and re-checking that on every
+  // save would incorrectly lock a user out of their own resume the moment
+  // they downgrade below whatever template it already uses.
+  if (req.body.templateSlug && req.body.templateSlug !== resume.templateSlug) {
     const template = await Template.findOne({ slug: req.body.templateSlug });
     if (!template) {
       return res.status(404).json({ message: 'Unknown template' });
@@ -89,10 +107,17 @@ router.put('/:id', asyncHandler(async (req, res) => {
     }
     resume.templateSlug = template.slug;
     resume.templateId = template._id;
+    switchedTemplate = template;
   }
 
   if (req.body.theme) {
-    if (!userCanCustomizeColors(plan)) {
+    const activeTemplate =
+      switchedTemplate ||
+      (resume.templateId
+        ? await Template.findById(resume.templateId)
+        : await Template.findOne({ slug: resume.templateSlug }));
+
+    if (isThemeCustomized(req.body.theme, activeTemplate?.defaultTheme) && !userCanCustomizeColors(plan)) {
       return res.status(403).json({
         message: 'Color customization requires Pro plan or higher',
       });
