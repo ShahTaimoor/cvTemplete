@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Sparkles, X } from 'lucide-react';
 import TemplateGallery from './TemplateGallery';
+import { overlayFade, modalCard } from '../../lib/motion';
 
 export default function TemplatePickerModal({
   templates,
@@ -22,12 +24,22 @@ export default function TemplatePickerModal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
-      <div
+    <motion.div
+      className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4"
+      initial={overlayFade.initial}
+      animate={overlayFade.animate}
+      exit={overlayFade.exit}
+      transition={overlayFade.transition}
+    >
+      <motion.div
         role="dialog"
         aria-modal="true"
         aria-labelledby="template-picker-title"
         className="bg-white rounded-xl max-w-5xl w-full max-h-[90vh] shadow-xl border border-slate-200 flex flex-col"
+        initial={modalCard.initial}
+        animate={modalCard.animate}
+        exit={modalCard.exit}
+        transition={modalCard.transition}
       >
         <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-slate-200 shrink-0">
           <div className="flex items-start gap-3 min-w-0">
@@ -62,7 +74,7 @@ export default function TemplatePickerModal({
             Create with selected template
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

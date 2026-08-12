@@ -1,4 +1,6 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
+import { toastSlide } from '../../lib/motion';
 
 const VARIANTS = {
   success: {
@@ -23,8 +25,12 @@ function ToastItem({ toast, onDismiss }) {
   const Icon = variant.icon;
 
   return (
-    <div
+    <motion.div
+      layout
       role="status"
+      initial={toastSlide.initial}
+      animate={toastSlide.animate}
+      exit={toastSlide.exit}
       className={`pointer-events-auto flex items-start gap-2.5 w-full max-w-sm rounded-lg border shadow-lg px-4 py-3 ${variant.className}`}
     >
       <Icon size={18} className={`shrink-0 mt-0.5 ${variant.iconClassName}`} />
@@ -37,7 +43,7 @@ function ToastItem({ toast, onDismiss }) {
       >
         <X size={16} />
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -46,9 +52,11 @@ export default function ToastContainer({ toasts, onDismiss }) {
 
   return (
     <div className="fixed top-4 right-4 z-[80] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
-      ))}
+      <AnimatePresence>
+        {toasts.map((toast) => (
+          <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

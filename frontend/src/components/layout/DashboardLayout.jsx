@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   FileText,
   LayoutDashboard,
@@ -13,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { logout } from '../../store/authSlice';
+import { overlayFade, drawerPanel } from '../../lib/motion';
 
 const NAV = [
   { to: '/dashboard', label: 'My Resumes', icon: LayoutDashboard },
@@ -103,39 +105,49 @@ export default function DashboardLayout({ children, fullHeight = false }) {
         {renderNavAndFooter()}
       </aside>
 
-      {mobileNavOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-50 bg-slate-900/60 flex"
-          onClick={() => setMobileNavOpen(false)}
-        >
-          <div
-            className="w-64 max-w-[80vw] h-full bg-white flex flex-col shadow-xl"
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {mobileNavOpen && (
+          <motion.div
+            className="md:hidden fixed inset-0 z-50 bg-slate-900/60 flex"
+            onClick={() => setMobileNavOpen(false)}
+            initial={overlayFade.initial}
+            animate={overlayFade.animate}
+            exit={overlayFade.exit}
+            transition={overlayFade.transition}
           >
-            <div className="h-14 flex items-center justify-between gap-2 px-4 border-b border-slate-200 shrink-0">
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-2 font-bold text-slate-900"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
-                  <FileText size={18} />
-                </span>
-                ResumeForge
-              </Link>
-              <button
-                type="button"
-                onClick={() => setMobileNavOpen(false)}
-                aria-label="Close menu"
-                className="text-slate-500 hover:text-slate-800"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            {renderNavAndFooter(() => setMobileNavOpen(false))}
-          </div>
-        </div>
-      )}
+            <motion.div
+              className="w-64 max-w-[80vw] h-full bg-white flex flex-col shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+              initial={drawerPanel.initial}
+              animate={drawerPanel.animate}
+              exit={drawerPanel.exit}
+              transition={drawerPanel.transition}
+            >
+              <div className="h-14 flex items-center justify-between gap-2 px-4 border-b border-slate-200 shrink-0">
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2 font-bold text-slate-900"
+                  onClick={() => setMobileNavOpen(false)}
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
+                    <FileText size={18} />
+                  </span>
+                  ResumeForge
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setMobileNavOpen(false)}
+                  aria-label="Close menu"
+                  className="text-slate-500 hover:text-slate-800"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              {renderNavAndFooter(() => setMobileNavOpen(false))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className={`flex-1 flex flex-col min-w-0 ${fullHeight ? 'h-full overflow-hidden' : ''}`}>
         <header className="md:hidden h-14 flex items-center justify-between px-4 border-b border-slate-200 bg-white shrink-0">

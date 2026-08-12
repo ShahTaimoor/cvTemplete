@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Trash2, FileText, Copy, Mail, Crown } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
@@ -9,6 +10,7 @@ import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
+import { staggerContainer, staggerItem } from '../lib/motion';
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
@@ -113,16 +115,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {showNew && (
-          <TemplatePickerModal
-            templates={templates}
-            selectedSlug={selectedSlug}
-            onSelect={(tpl) => !tpl.locked && setSelectedSlug(tpl.slug)}
-            onClose={() => setShowNew(false)}
-            onCreate={createResume}
-            isFirstResume={list.length === 0}
-          />
-        )}
+        <AnimatePresence>
+          {showNew && (
+            <TemplatePickerModal
+              templates={templates}
+              selectedSlug={selectedSlug}
+              onSelect={(tpl) => !tpl.locked && setSelectedSlug(tpl.slug)}
+              onClose={() => setShowNew(false)}
+              onCreate={createResume}
+              isFirstResume={list.length === 0}
+            />
+          )}
+        </AnimatePresence>
 
         {plan === 'premium' && coverLetters.length > 0 && (
           <div className="mb-8">
@@ -145,9 +149,18 @@ export default function DashboardPage() {
         )}
 
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Your resumes</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer()}
+        >
           {list.map((r) => (
-            <article key={r._id} className="app-card p-5 hover:border-brand-200 transition-colors">
+            <motion.article
+              key={r._id}
+              variants={staggerItem}
+              className="app-card p-5 hover:border-brand-200 transition-colors"
+            >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-3">
                 <FileText size={20} />
               </div>
@@ -186,7 +199,7 @@ export default function DashboardPage() {
                   <Trash2 size={18} />
                 </button>
               </div>
-            </article>
+            </motion.article>
           ))}
           {!list.length && (
             <div className="col-span-full app-card p-12 text-center">
@@ -199,7 +212,7 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </DashboardLayout>
   );

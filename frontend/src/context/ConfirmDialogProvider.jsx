@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { ConfirmDialogContext } from './confirmDialogContext';
 
@@ -35,13 +36,15 @@ export function ConfirmDialogProvider({ children }) {
   return (
     <ConfirmDialogContext.Provider value={confirmDialog}>
       {children}
-      {dialog && (
-        <ConfirmDialog
-          {...dialog}
-          onConfirm={(value) => resolveAndClose(dialog.inputMode ? value ?? '' : true)}
-          onCancel={() => resolveAndClose(dialog.inputMode ? null : false)}
-        />
-      )}
+      <AnimatePresence>
+        {dialog && (
+          <ConfirmDialog
+            {...dialog}
+            onConfirm={(value) => resolveAndClose(dialog.inputMode ? value ?? '' : true)}
+            onCancel={() => resolveAndClose(dialog.inputMode ? null : false)}
+          />
+        )}
+      </AnimatePresence>
     </ConfirmDialogContext.Provider>
   );
 }

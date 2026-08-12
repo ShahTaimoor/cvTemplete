@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { AlertTriangle, HelpCircle } from 'lucide-react';
+import { overlayFade, modalCard } from '../../lib/motion';
 
 /**
  * Presentational confirm/prompt dialog. Rendered by ConfirmDialogProvider —
@@ -45,12 +47,22 @@ export default function ConfirmDialog({
   const Icon = destructive ? AlertTriangle : HelpCircle;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-slate-900/60 flex items-center justify-center p-4">
-      <div
+    <motion.div
+      className="fixed inset-0 z-[70] bg-slate-900/60 flex items-center justify-center p-4"
+      initial={overlayFade.initial}
+      animate={overlayFade.animate}
+      exit={overlayFade.exit}
+      transition={overlayFade.transition}
+    >
+      <motion.div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
         className="bg-white rounded-xl max-w-sm w-full p-5 shadow-xl border border-slate-200"
+        initial={modalCard.initial}
+        animate={modalCard.animate}
+        exit={modalCard.exit}
+        transition={modalCard.transition}
       >
         <form onSubmit={handleSubmit}>
           <div className="flex items-start gap-3 mb-2">
@@ -99,7 +111,7 @@ export default function ConfirmDialog({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

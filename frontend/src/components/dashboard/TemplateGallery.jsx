@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Search, X, Globe } from 'lucide-react';
 import {
   TEMPLATE_FILTERS,
@@ -10,6 +11,7 @@ import {
 import { withTemplateSlug } from '../../data/sampleResume';
 import TemplateCard from '../templates/TemplateCard';
 import ResumePreview from '../resume/ResumePreview';
+import { staggerContainer, staggerItem } from '../../lib/motion';
 
 const PAGE_SIZE = 24;
 
@@ -213,9 +215,15 @@ export default function TemplateGallery({
         </p>
       )}
 
-      <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+      <motion.div
+        key={currentPage}
+        className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer(0.02)}
+      >
         {pageItems.map((t) => (
-          <div key={t.slug || t._id} className="space-y-2">
+          <motion.div key={t.slug || t._id} variants={staggerItem} className="space-y-2">
             <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
             {!compact && (
               <button
@@ -226,9 +234,9 @@ export default function TemplateGallery({
                 Preview with sample data
               </button>
             )}
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6">
