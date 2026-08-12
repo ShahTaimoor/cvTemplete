@@ -15,7 +15,6 @@ export default function TemplateCard({ template, onSelect, selected }) {
 
   return (
     <motion.div
-      layout
       whileHover={{ scale: template.locked ? 1 : 1.02 }}
       role={!template.locked && onSelect ? 'button' : undefined}
       tabIndex={!template.locked && onSelect ? 0 : undefined}
