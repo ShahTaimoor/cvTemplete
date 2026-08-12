@@ -37,7 +37,10 @@ router.post('/', asyncHandler(async (req, res) => {
   const template = await Template.findOne({ slug });
   const plan = req.user.subscription?.plan || 'free';
 
-  if (template && !userCanUseTemplate(plan, template)) {
+  if (!template) {
+    return res.status(404).json({ message: 'Unknown template' });
+  }
+  if (!userCanUseTemplate(plan, template)) {
     return res.status(403).json({ message: 'Template locked. Upgrade your plan.' });
   }
 
@@ -48,9 +51,9 @@ router.post('/', asyncHandler(async (req, res) => {
   const resume = await Resume.create({
     user: req.user._id,
     title: req.body.title || sample.title || 'Untitled Resume',
-    templateSlug: slug,
-    templateId: template?._id,
-    theme: template?.defaultTheme || sample.theme,
+    templateSlug: template.slug,
+    templateId: template._id,
+    theme: template.defaultTheme || sample.theme,
     personal: sample.personal,
     summary: sample.summary,
     education: sample.education,
@@ -76,13 +79,14 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
   if (req.body.templateSlug) {
     const template = await Template.findOne({ slug: req.body.templateSlug });
-    if (template && !userCanUseTemplate(plan, template)) {
+    if (!template) {
+      return res.status(404).json({ message: 'Unknown template' });
+    }
+    if (!userCanUseTemplate(plan, template)) {
       return res.status(403).json({ message: 'Template locked. Upgrade your plan.' });
     }
-    if (template) {
-      resume.templateSlug = template.slug;
-      resume.templateId = template._id;
-    }
+    resume.templateSlug = template.slug;
+    resume.templateId = template._id;
   }
 
   if (req.body.theme) {
