@@ -6,6 +6,7 @@ import { subscriptionAPI } from '../services/api';
 import { fetchMe } from '../store/authSlice';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useToast } from '../hooks/useToast';
+import { useConfirm } from '../hooks/useConfirm';
 
 const COMPARE_ROWS = [
   { label: 'Resume templates', free: '2', basic: '12+', pro: '55+', premium: '330+' },
@@ -23,19 +24,60 @@ function CellValue({ value }) {
   return <span className="text-sm font-medium text-slate-700">{value}</span>;
 }
 
+/** What a user on `planId` actually loses by dropping to Free, sourced from
+ * the real compare-table gates (not the marketing feature bullets). */
+function getDowngradeLosses(planId) {
+  if (planId === 'free') return [];
+  const current = PLANS.find((p) => p.id === planId);
+  const free = PLANS.find((p) => p.id === 'free');
+  if (!current) return [];
+
+  const losses = [`${current.templates}+ templates (down to ${free.templates})`];
+  COMPARE_ROWS.forEach((row) => {
+    if (typeof row[planId] !== 'boolean') return;
+    if (row[planId] && !row.free) losses.push(row.label);
+  });
+  if (planId === 'premium') losses.push('Country CV formats');
+
+  return losses;
+}
+
 export default function PricingPage() {
   const { user, token } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const currentPlan = user?.subscription?.plan || 'free';
+
+  const handleDowngrade = async () => {
+    const losses = getDowngradeLosses(currentPlan);
+    const ok = await confirmDialog({
+      title: 'Downgrade to Free plan?',
+      message: `You'll lose: ${losses.join(', ')}. This takes effect immediately.`,
+      confirmLabel: 'Downgrade to Free',
+      cancelLabel: 'Cancel',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await subscriptionAPI.upgrade('free');
+      dispatch(fetchMe());
+      toast.success('Downgraded to Free plan');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Downgrade failed');
+    }
+  };
 
   const handleUpgrade = async (planId) => {
     if (!token) {
       navigate('/register');
       return;
     }
-    if (planId === 'free') return;
+    if (planId === 'free') {
+      await handleDowngrade();
+      return;
+    }
     try {
       await subscriptionAPI.upgrade(planId);
       dispatch(fetchMe());

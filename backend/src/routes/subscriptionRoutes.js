@@ -21,20 +21,23 @@ router.get('/current', protect, asyncHandler(async (req, res) => {
 
 router.post('/upgrade', protect, asyncHandler(async (req, res) => {
   const { planId } = req.body;
-  if (!PLANS[planId] || planId === 'free') {
+  if (!PLANS[planId]) {
     return res.status(400).json({ message: 'Invalid plan' });
   }
 
   const user = await User.findById(req.user._id);
-  user.subscription = {
-    plan: planId,
-    purchasedAt: new Date(),
-    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-  };
+  user.subscription =
+    planId === 'free'
+      ? { plan: 'free', purchasedAt: null, expiresAt: null }
+      : {
+          plan: planId,
+          purchasedAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        };
   await user.save();
 
   res.json({
-    message: `Upgraded to ${PLANS[planId].name} plan`,
+    message: planId === 'free' ? 'Downgraded to Free plan' : `Upgraded to ${PLANS[planId].name} plan`,
     subscription: user.subscription,
     plan: PLANS[planId],
   });
