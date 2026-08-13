@@ -96,7 +96,10 @@ export default function PricingPage() {
           <Sparkles size={14} />
           {CURRENCY_LABEL}
         </span>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight">
+        <h1
+          className="text-3xl sm:text-4xl lg:text-5xl font-medium text-brand-600 tracking-tight"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
           Simple monthly plans
         </h1>
         <p className="text-slate-600 mt-4 text-base sm:text-lg leading-relaxed">
@@ -114,27 +117,27 @@ export default function PricingPage() {
               key={plan.id}
               className={`relative flex flex-col rounded-2xl border bg-white p-6 sm:p-7 transition-shadow ${
                 isPopular
-                  ? 'border-brand-500 shadow-lg shadow-brand-500/10 xl:scale-[1.03] xl:z-10'
+                  ? 'border-burgundy shadow-lg shadow-burgundy/10 xl:scale-[1.03] xl:z-10'
                   : 'border-slate-200 shadow-sm hover:shadow-md'
               }`}
             >
               {isPopular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold bg-brand-600 text-white px-4 py-1 rounded-full shadow-sm whitespace-nowrap">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold bg-burgundy text-white px-4 py-1 rounded-full shadow-sm whitespace-nowrap">
                   Most popular
                 </span>
               )}
 
               <div className="mb-5">
-                <h2 className="text-xl font-bold text-slate-900">{plan.name}</h2>
-                <p className="text-sm text-slate-500 mt-1">{plan.tagline}</p>
+                <h2 className="text-xl font-bold text-graphite">{plan.name}</h2>
+                <p className="text-sm text-slate-600 mt-1">{plan.tagline}</p>
               </div>
 
               <div className="mb-1">
-                <span className="text-4xl sm:text-[2.5rem] font-bold text-slate-900 tracking-tight">
+                <span className="text-4xl sm:text-[2.5rem] font-bold text-graphite tracking-tight">
                   {formatPlanPrice(plan.price)}
                 </span>
                 {plan.price > 0 && (
-                  <span className="text-slate-500 text-sm font-medium ml-1">/ {BILLING_PERIOD_LABEL}</span>
+                  <span className="text-slate-600 text-sm font-medium ml-1">/ {BILLING_PERIOD_LABEL}</span>
                 )}
               </div>
               <div className="mb-4" />
@@ -174,23 +177,23 @@ export default function PricingPage() {
       {/* Compare table */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="px-6 sm:px-8 py-5 border-b border-slate-200 bg-slate-50/80">
-          <h2 className="text-lg font-bold text-slate-900">Compare all features</h2>
-          <p className="text-sm text-slate-500 mt-1">See what each plan includes</p>
+          <h2 className="text-lg font-bold text-graphite">Compare all features</h2>
+          <p className="text-sm text-slate-600 mt-1">See what each plan includes</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-slate-200 bg-white">
-                <th className="text-left py-4 px-6 font-medium text-slate-500 w-[40%]">Feature</th>
+                <th className="text-left py-4 px-6 font-medium text-slate-600 w-[40%]">Feature</th>
                 {PLANS.map((p) => (
                   <th
                     key={p.id}
                     className={`py-4 px-4 text-center font-semibold min-w-[100px] ${
-                      p.popular ? 'text-brand-700 bg-brand-50/50' : 'text-slate-900'
+                      p.popular ? 'text-burgundy bg-burgundy/5' : 'text-graphite'
                     }`}
                   >
                     <span className="block">{p.name}</span>
-                    <span className="block text-xs font-normal text-slate-500 mt-0.5">
+                    <span className="block text-xs font-normal text-slate-600 mt-0.5">
                       {formatPlanPrice(p.price)}
                       {p.price > 0 ? '/mo' : ''}
                     </span>
@@ -204,14 +207,14 @@ export default function PricingPage() {
                   key={row.label}
                   className={`border-b border-slate-100 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}
                 >
-                  <td className="py-3.5 px-6 text-slate-700 font-medium">{row.label}</td>
+                  <td className="py-3.5 px-6 text-graphite font-medium">{row.label}</td>
                   <td className="py-3.5 px-4 text-center">
                     <CellValue value={row.free} />
                   </td>
                   <td className="py-3.5 px-4 text-center">
                     <CellValue value={row.basic} />
                   </td>
-                  <td className="py-3.5 px-4 text-center bg-brand-50/30">
+                  <td className="py-3.5 px-4 text-center bg-burgundy/5">
                     <CellValue value={row.pro} />
                   </td>
                   <td className="py-3.5 px-4 text-center">

@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { FileText, Download, Palette, Shield, Sparkles, ArrowRight } from 'lucide-react';
 
 const features = [
@@ -41,10 +42,58 @@ const featureCard = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
 };
 
+const ctaBanner = {
+  hidden: { opacity: 0, y: 36, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 90, damping: 16, mass: 0.8 },
+  },
+};
+
+/** Small circular emblem — the brand's recurring "seal of trust" signature,
+ * reserved for burgundy per the approved concept (Pro/Premium + trust marks). */
+function Seal({ size = 40, className = '' }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-full bg-burgundy text-mist ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <span className="absolute -inset-1 rounded-full border border-burgundy/30" />
+      <Shield size={size * 0.5} strokeWidth={2} />
+    </span>
+  );
+}
+
 export default function LandingPage() {
+  // The app-wide route AnimatePresence uses initial={false} (App.jsx) so the
+  // whole app doesn't fade in on first boot — but that also suppresses this
+  // hero's own mount-triggered initial->animate transition on a hard page
+  // load, since Framer treats anything present at that very first render as
+  // already "settled." Flipping `animate` from a useEffect (fires after the
+  // first paint) creates a genuine prop-change transition instead of an
+  // initial-mount one, which isn't subject to that suppression.
+  const [heroVisible, setHeroVisible] = useState(false);
+  useEffect(() => {
+    setHeroVisible(true);
+  }, []);
+
+  // Same root cause as the hero, different Framer API: the CTA banner's
+  // whileInView/initial props were ALSO getting suppressed by the outer
+  // AnimatePresence's initial={false} on a fresh load — its opacity/scale
+  // sat permanently at the "already revealed" end state, verified by
+  // sampling computed style (never transitioned, even after scrolling it
+  // into view). useInView is a plain IntersectionObserver-backed hook, not
+  // a whileInView/initial prop, so it isn't subject to that suppression;
+  // driving `animate` from its boolean result sidesteps the bug entirely.
+  const ctaRef = useRef(null);
+  const ctaInView = useInView(ctaRef, { once: true, amount: 0.4 });
+
   return (
     <div className="bg-white">
-      <section className="relative overflow-hidden border-b border-slate-200 bg-slate-50">
+      <section className="relative overflow-hidden border-b border-slate-200 bg-mist">
         {/* Floating decorative orbs — subtle parallax-style ambient motion */}
         <motion.div
           aria-hidden
@@ -54,7 +103,7 @@ export default function LandingPage() {
         />
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute top-1/3 -left-20 h-72 w-72 rounded-full bg-brand-100/60 blur-3xl"
+          className="pointer-events-none absolute top-1/3 -left-20 h-72 w-72 rounded-full bg-brass/15 blur-3xl"
           animate={{ y: [0, 18, 0], scale: [1, 1.08, 1] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
         />
@@ -63,21 +112,26 @@ export default function LandingPage() {
           <motion.div
             className="max-w-3xl"
             initial="hidden"
-            animate="visible"
+            animate={heroVisible ? 'visible' : 'hidden'}
             variants={heroContainer}
           >
-            <motion.p variants={heroItem} className="text-sm font-semibold text-brand-600 mb-4">
-              Professional CV builder
+            <motion.p
+              variants={heroItem}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-brass-ink mb-5"
+            >
+              <Shield size={16} className="text-brass-ink" />
+              Professional CV Builder
             </motion.p>
             <motion.h1
               variants={heroItem}
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-[1.1]"
+              className="text-4xl sm:text-5xl lg:text-6xl font-medium text-brand-600 tracking-tight leading-[1.1]"
+              style={{ fontFamily: 'var(--font-display)' }}
             >
-              Build a resume that opens doors
+              Build a résumé that earns trust
             </motion.h1>
             <motion.p variants={heroItem} className="text-lg text-slate-600 mt-6 max-w-xl leading-relaxed">
-              ResumeForge gives you recruiter-ready templates, live preview, and simple pricing — starting free,
-              from Rs. 150/month (PKR).
+              ResumeForge pairs recruiter-ready templates with real-time preview and transparent pricing —
+              trusted by professionals across Pakistan and the Gulf. Starting free, from Rs. 150/month (PKR).
             </motion.p>
             <motion.div variants={heroItem} className="flex flex-wrap gap-3 mt-10">
               <motion.div
@@ -85,7 +139,10 @@ export default function LandingPage() {
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 18 }}
               >
-                <Link to="/register" className="app-btn-primary !px-8 !py-3 text-base">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 text-base font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
+                >
                   Start free
                   <ArrowRight size={18} className="ml-2" />
                 </Link>
@@ -100,13 +157,22 @@ export default function LandingPage() {
                 </Link>
               </motion.div>
             </motion.div>
+
+            <motion.div variants={heroItem} className="flex items-center gap-3 mt-12">
+              <Seal size={36} />
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-graphite">Formats recruiters trust</span> — built for
+                Pakistan, the Gulf, and beyond.
+              </p>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
         <motion.h2
-          className="text-2xl font-bold text-slate-900 text-center mb-10"
+          className="text-2xl font-medium text-brand-600 text-center mb-10"
+          style={{ fontFamily: 'var(--font-display)' }}
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.6 }}
@@ -126,7 +192,7 @@ export default function LandingPage() {
               <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-4">
                 <Icon size={22} />
               </span>
-              <h3 className="font-semibold text-slate-900 mb-1">{title}</h3>
+              <h3 className="font-semibold text-graphite mb-1">{title}</h3>
               <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
             </motion.div>
           ))}
@@ -135,26 +201,31 @@ export default function LandingPage() {
 
       <section className="border-t border-slate-200 bg-brand-600">
         <motion.div
+          ref={ctaRef}
           className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col sm:flex-row items-center justify-between gap-6"
-          initial={{ opacity: 0, y: 36, scale: 0.98 }}
-          whileInView={{ opacity: 1, y: 0, scale: 1 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ type: 'spring', stiffness: 90, damping: 16, mass: 0.8 }}
+          initial="hidden"
+          animate={ctaInView ? 'visible' : 'hidden'}
+          variants={ctaBanner}
         >
-          <div className="text-white">
-            <h2 className="text-2xl font-bold">Ready to create your resume?</h2>
-            <p className="text-brand-100 mt-2">Join free — no credit card required.</p>
+          <div className="flex items-center gap-4 text-white">
+            <Seal size={44} className="ring-2 ring-white/20" />
+            <div>
+              <h2 className="text-2xl font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+                Ready to create your resume?
+              </h2>
+              <p className="text-brand-100 mt-1">Join free — no credit card required.</p>
+            </div>
           </div>
           <motion.div
-            initial={{ boxShadow: '0 0 0 0 rgba(255,255,255,0)' }}
-            whileHover={{ scale: 1.06, boxShadow: '0 8px 30px 0 rgba(255,255,255,0.35)' }}
+            initial={{ boxShadow: '0 0 0 0 rgba(185,139,78,0)' }}
+            whileHover={{ scale: 1.06, boxShadow: '0 8px 30px 0 rgba(185,139,78,0.45)' }}
             whileTap={{ scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 300, damping: 16 }}
             className="rounded-lg"
           >
             <Link
               to="/register"
-              className="inline-flex items-center justify-center rounded-lg bg-white px-8 py-3 font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
             >
               Get started
             </Link>

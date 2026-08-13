@@ -2,11 +2,33 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #1e40af;
+  /* Headline-only serif — never applied to body copy or UI chrome. */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+
+  /* Ink Navy brand scale — 600 is the approved base (#142440). */
+  --color-brand-50: #eef1f6;
+  --color-brand-100: #dce3ed;
+  --color-brand-200: #b9c6d9;
+  --color-brand-300: #93a6c0;
+  --color-brand-500: #2c4468;
+  --color-brand-600: #142440;
+  --color-brand-700: #0c1830;
+
+  /* Additional semantic tokens from the approved brand concept — not part
+     of the brand-* accent scale, each has one specific job:
+     mist = page background, graphite = body text, steel = muted/secondary
+     text, brass = accent (buttons/highlights), burgundy = reserved for
+     Pro/Premium indicators only. */
+  --color-mist: #f4f6f9;
+  --color-graphite: #333b47;
+  --color-steel: #7b8798;
+  --color-brass: #b98b4e;
+  /* #b98b4e on white is ~3:1 contrast — fails WCAG AA for normal text.
+     Use brass-ink instead whenever brass appears as small/body text;
+     keep plain brass for backgrounds, large type, icons and borders. */
+  --color-brass-ink: #8a6a2e;
+  --color-burgundy: #6e2a3b;
+
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
@@ -32,7 +54,9 @@
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply antialiased;
+  background-color: var(--color-mist);
+  color: var(--color-graphite);
   font-family: var(--font-sans);
 }
 
