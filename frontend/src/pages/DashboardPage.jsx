@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Trash2, FileText, Copy, Mail, Crown } from 'lucide-react';
+import { Plus, Trash2, FileText, Copy, Mail, Crown, LayoutTemplate } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI } from '../services/api';
@@ -11,6 +11,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem } from '../lib/motion';
+import { getTemplatePreset } from '../config/templates';
 
 export default function DashboardPage() {
   const dispatch = useDispatch();
@@ -96,17 +97,23 @@ export default function DashboardPage() {
 
         <div className="grid sm:grid-cols-3 gap-4 mb-8">
           <div className="app-card p-5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
+              <FileText size={16} />
+            </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resumes</p>
             <p className="text-3xl font-bold text-slate-900 mt-1">{list.length}</p>
           </div>
           <div className="app-card p-5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brass/15 text-brass mb-2">
+              <Crown size={16} />
+            </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current plan</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1 capitalize flex items-center gap-2">
-              <Crown size={22} className="text-amber-500" />
-              {plan}
-            </p>
+            <p className="text-3xl font-bold text-slate-900 mt-1 capitalize">{plan}</p>
           </div>
           <div className="app-card p-5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
+              <LayoutTemplate size={16} />
+            </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Templates</p>
             <p className="text-3xl font-bold text-slate-900 mt-1">{templates.length || '—'}</p>
             <Link to="/pricing" className="text-sm text-brand-600 font-medium mt-2 inline-block hover:underline">
@@ -161,9 +168,11 @@ export default function DashboardPage() {
               variants={staggerItem}
               className="app-card p-5 hover:border-brand-200 transition-colors"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-3">
-                <FileText size={20} />
-              </div>
+              <div
+                className="h-10 w-10 rounded-lg mb-3"
+                style={{ backgroundColor: getTemplatePreset(r.templateSlug).primary }}
+                aria-hidden
+              />
               <h3 className="font-semibold text-slate-900">{r.title}</h3>
               <p className="text-xs text-slate-500 mt-1 capitalize">{r.templateSlug?.replace(/-/g, ' ')}</p>
               <p className="text-xs text-slate-400 mt-2">

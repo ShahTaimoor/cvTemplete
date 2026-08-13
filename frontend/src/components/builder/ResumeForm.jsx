@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { useEffect, useRef } from 'react';
+import { Upload } from 'lucide-react';
 import DynamicListField from './DynamicListField';
 import ThemeCustomizer from './ThemeCustomizer';
 import SectionOrder from './SectionOrder';
@@ -72,7 +73,11 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
         </div>
         <div>
           <label className="app-label">Profile Photo</label>
-          <input type="file" accept="image/*" onChange={handlePhoto} className="mt-1 text-sm" />
+          <label className="app-btn-secondary cursor-pointer inline-flex w-fit gap-2">
+            <Upload size={16} />
+            Choose Photo
+            <input type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />
+          </label>
         </div>
       </section>
 

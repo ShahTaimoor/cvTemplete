@@ -65,13 +65,13 @@ export default function TemplateCard({ template, onSelect, selected }) {
           className="absolute inset-0 backdrop-blur-sm bg-slate-900/70 flex flex-col items-center justify-center gap-2 z-10"
           onClick={(e) => e.stopPropagation()}
         >
-          <Lock className="text-amber-400" size={28} />
+          <Lock className="text-brass" size={28} />
           <p className="text-xs text-slate-300 text-center px-2">
             {template.lockReason || 'Upgrade to unlock'}
           </p>
           <Link
             to="/pricing"
-            className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-3 py-1.5 rounded-lg"
+            className="text-xs bg-brass hover:bg-brass/90 text-brand-700 font-semibold px-3 py-1.5 rounded-lg"
             onClick={(e) => e.stopPropagation()}
           >
             Upgrade to Unlock
