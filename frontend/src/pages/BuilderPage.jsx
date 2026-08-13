@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence } from 'framer-motion';
-import { Download, LayoutTemplate, CheckCircle, Share2, BarChart3, LineChart, FileImage, FileType, History, Mail, X } from 'lucide-react';
+import { Download, LayoutTemplate, CheckCircle, AlertCircle, Share2, BarChart3, LineChart, FileImage, FileType, History, Mail, X } from 'lucide-react';
 import { fetchResume, setCurrentResume } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI, downloadBlob } from '../services/api';
@@ -22,7 +22,7 @@ export default function BuilderPage() {
   const dispatch = useDispatch();
   const confirmDialog = useConfirm();
   const toast = useToast();
-  const { current, saving, lastSaved } = useSelector((s) => s.resume);
+  const { current, saving, lastSaved, error: saveError } = useSelector((s) => s.resume);
   const { user } = useSelector((s) => s.auth);
   const { items: templates } = useSelector((s) => s.templates);
   const [localResume, setLocalResume] = useState(null);
@@ -229,12 +229,21 @@ export default function BuilderPage() {
             Dashboard
           </Link>
           <h1 className="font-semibold text-slate-900 truncate max-w-[140px] sm:max-w-[200px]">{localResume.title}</h1>
-          <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
-            {saving ? 'Saving...' : lastSaved && (
-              <>
-                <CheckCircle size={12} className="text-emerald-500" />
-                Saved {new Date(lastSaved).toLocaleTimeString()}
-              </>
+          <span className="text-xs hidden sm:flex items-center gap-1">
+            {saving ? (
+              <span className="text-slate-500">Saving...</span>
+            ) : saveError ? (
+              <span className="text-red-600 flex items-center gap-1">
+                <AlertCircle size={12} />
+                Save failed
+              </span>
+            ) : (
+              lastSaved && (
+                <span className="text-slate-500 flex items-center gap-1">
+                  <CheckCircle size={12} className="text-emerald-500" />
+                  Saved {new Date(lastSaved).toLocaleTimeString()}
+                </span>
+              )
             )}
           </span>
         </div>
