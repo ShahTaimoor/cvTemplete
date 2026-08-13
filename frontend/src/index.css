@@ -43,23 +43,29 @@ body {
   font-family: var(--resume-font, Inter, sans-serif);
 }
 
-/* App UI primitives */
-.app-card {
-  @apply bg-white border border-slate-200 rounded-xl shadow-sm;
-}
+/* App UI primitives — layered so Tailwind's own utilities (e.g. hidden,
+   sm:flex) keep priority over these per CSS cascade-layers rules. Unlayered
+   custom CSS always outranks layered utilities regardless of source order,
+   which previously made `hidden sm:flex` silently fail to hide any element
+   also carrying .app-btn-primary/.app-btn-secondary (their inline-flex won). */
+@layer components {
+  .app-card {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
+  }
 
-.app-input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
-}
+  .app-input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+  }
 
-.app-btn-primary {
-  @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-all duration-150 active:scale-[0.97];
-}
+  .app-btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-all duration-150 active:scale-[0.97];
+  }
 
-.app-btn-secondary {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.97];
-}
+  .app-btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.97];
+  }
 
-.app-label {
-  @apply block text-sm font-medium text-slate-700 mb-1.5;
+  .app-label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
 }
