@@ -3,15 +3,14 @@ import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import { generateToken } from '../utils/generateToken.js';
 import { protect } from '../middleware/auth.js';
-import { authLimiter } from '../middleware/security.js';
+import { loginLimiter, registerLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
-router.use(authLimiter);
-
 router.post(
   '/register',
+  registerLimiter,
   [
     body('name').trim().notEmpty(),
     body('email').isEmail().normalizeEmail(),
@@ -40,6 +39,7 @@ router.post(
 
 router.post(
   '/login',
+  loginLimiter,
   [body('email').isEmail(), body('password').notEmpty()],
   asyncHandler(async (req, res) => {
     const errors = validationResult(req);
