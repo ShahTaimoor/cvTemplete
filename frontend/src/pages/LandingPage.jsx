@@ -75,10 +75,35 @@ export default function LandingPage() {
   // already "settled." Flipping `animate` from a useEffect (fires after the
   // first paint) creates a genuine prop-change transition instead of an
   // initial-mount one, which isn't subject to that suppression.
-  const [heroVisible, setHeroVisible] = useState(false);
+  //
+  // The animation is only worth that treatment once per session, though —
+  // replaying the full slide-in on every refresh reads as repetitive rather
+  // than a first impression. sessionStorage (not localStorage) is read
+  // synchronously via a lazy useState initializer, so a repeat visit's very
+  // first render already has `heroSeen: true` — no flash of the hidden
+  // starting state before it snaps settled. Passing `initial={false}` on the
+  // motion.div itself (not just leaving `animate` pre-set to "visible")
+  // is what actually skips Framer's mount transition on a repeat visit;
+  // without it a fresh mount would still animate from "hidden" to "visible"
+  // regardless of the AnimatePresence-level suppression above, since that
+  // suppression only applies to the app's very first-ever paint.
+  const HERO_SEEN_KEY = 'resumeforge_hero_seen';
+  const [heroSeen] = useState(() => {
+    try {
+      return sessionStorage.getItem(HERO_SEEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [heroVisible, setHeroVisible] = useState(heroSeen);
   useEffect(() => {
-    setHeroVisible(true);
-  }, []);
+    if (!heroSeen) setHeroVisible(true);
+    try {
+      sessionStorage.setItem(HERO_SEEN_KEY, '1');
+    } catch {
+      // sessionStorage unavailable (e.g. disabled) — animation just replays each time.
+    }
+  }, [heroSeen]);
 
   // Same root cause as the hero, different Framer API: the CTA banner's
   // whileInView/initial props were ALSO getting suppressed by the outer
@@ -111,7 +136,7 @@ export default function LandingPage() {
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
           <motion.div
             className="max-w-3xl"
-            initial="hidden"
+            initial={heroSeen ? false : 'hidden'}
             animate={heroVisible ? 'visible' : 'hidden'}
             variants={heroContainer}
           >
