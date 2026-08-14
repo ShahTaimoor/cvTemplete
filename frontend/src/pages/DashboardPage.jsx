@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -26,7 +26,38 @@ export default function DashboardPage() {
   const [coverLetters, setCoverLetters] = useState([]);
   const plan = user?.subscription?.plan || 'free';
 
+  // The resume grid below plays a stagger entrance animation keyed to
+  // `animate="visible"` — a static prop that never toggles. If `list` gets a
+  // new array reference (a second fetchResumes() resolving) while that
+  // stagger is still mid-sequence, Framer's per-child propagation for
+  // children whose individual delay hasn't elapsed yet is abandoned and
+  // never retriggered, permanently stranding them at opacity:0 (only a full
+  // remount clears it — this was the Dashboard card-invisibility bug).
+  // Forcing a fresh `key` whenever `list`'s reference changes makes every
+  // list update fully remount the grid instead of updating it in place, so
+  // there's never a "some children already in flight, others not" state to
+  // strand — each mount always starts every child from `hidden` and runs
+  // the transition through uninterrupted. Computed during render (not an
+  // effect) so the key is already correct in the same pass `list` changes,
+  // with no extra render or visible flash of stale content.
+  const [gridKey, setGridKey] = useState(0);
+  const [listAtLastKey, setListAtLastKey] = useState(list);
+  if (list !== listAtLastKey) {
+    setListAtLastKey(list);
+    setGridKey((k) => k + 1);
+  }
+
+  // Guards against dispatching the same fetch twice for the same (dispatch,
+  // plan) pair — most notably React StrictMode's dev-only mount→cleanup→
+  // mount double-invoke, which would otherwise fire fetchResumes() twice
+  // ~200ms apart and briefly race two overlapping list updates. A genuine
+  // remount (e.g. leaving and returning to the route) gets a fresh ref and
+  // still fetches normally; a real plan change still refetches too, since
+  // that changes the guarded key.
+  const fetchedForPlanRef = useRef(null);
   useEffect(() => {
+    if (fetchedForPlanRef.current === plan) return;
+    fetchedForPlanRef.current = plan;
     dispatch(fetchResumes());
     dispatch(fetchTemplates());
     if (plan === 'premium') {
@@ -157,6 +188,7 @@ export default function DashboardPage() {
 
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Your resumes</h2>
         <motion.div
+          key={gridKey}
           className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
           initial="hidden"
           animate="visible"
