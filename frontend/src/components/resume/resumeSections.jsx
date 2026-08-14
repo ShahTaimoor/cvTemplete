@@ -210,6 +210,21 @@ export const SkillBars = ({ skills, style, light }) => (
 export const getContacts = (personal) =>
   [personal?.email, personal?.phone, personal?.location, personal?.website, personal?.linkedin].filter(Boolean);
 
+// { type, value } pairs for call sites that render each contact as its own
+// keyed list item. Two different fields (e.g. website and linkedin) can
+// legitimately hold the identical value — keying by the bare string (as
+// getContacts()'s plain values used to be keyed) collides in that case and
+// produces a duplicate React key; the field type is guaranteed unique
+// per resume instead, since each type appears at most once.
+export const getContactEntries = (personal) =>
+  [
+    { type: 'email', value: personal?.email },
+    { type: 'phone', value: personal?.phone },
+    { type: 'location', value: personal?.location },
+    { type: 'website', value: personal?.website },
+    { type: 'linkedin', value: personal?.linkedin },
+  ].filter((c) => c.value);
+
 export const resumeWithoutSkills = (resume) => ({
   ...resume,
   skills: [],
