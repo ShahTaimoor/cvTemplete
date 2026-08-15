@@ -14,7 +14,7 @@ import { useAutoSave } from '../hooks/useAutoSave';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
 import { getTemplatePreset } from '../config/templates';
-import { exportElementToPdf, exportElementToPng } from '../utils/exportPreview';
+import { exportElementToPng } from '../utils/exportPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
 
 export default function BuilderPage() {
@@ -110,19 +110,12 @@ export default function BuilderPage() {
   };
 
   const downloadPdf = async () => {
-    const el = getPreviewEl();
-    if (!el) {
-      toast.info('Switch to Preview tab first, then download PDF.');
-      return;
-    }
     setExporting(true);
     try {
-      if (mobileTab === 'edit') setMobileTab('preview');
-      await new Promise((r) => setTimeout(r, 400));
-      await exportElementToPdf(getPreviewEl(), safeFilename('pdf'));
-      resumeAPI.trackDownload(id, 'pdf').catch(() => {});
+      const { data } = await resumeAPI.pdf(id);
+      downloadBlob(data, safeFilename('pdf'), 'application/pdf');
     } catch (err) {
-      toast.error(err.message || 'PDF export failed');
+      toast.error(err.response?.data?.message || 'PDF export failed');
     } finally {
       setExporting(false);
     }

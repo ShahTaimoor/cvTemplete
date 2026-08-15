@@ -7,6 +7,7 @@ import { protect } from '../middleware/auth.js';
 import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAccess.js';
 import { analyzeResume } from '../services/atsService.js';
 import { buildResumeDocx } from '../services/docxService.js';
+import { generateResumePdf } from '../services/pdfService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -235,13 +236,33 @@ router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   );
 }));
 
-// PDF/PNG exports happen entirely client-side (html-to-image + jsPDF) — no
-// server round-trip occurs for them, so the frontend calls this directly
-// after a successful export to log the download.
+// Real, native-text PDF via a headless-browser render of the print-CSS
+// route (see pdfService.js) — not a screenshot. Rate-limited like docx:
+// launching a browser per request is the most expensive export we offer.
+router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
+  const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id }).select('_id title');
+  if (!resume) return res.status(404).json({ message: 'Resume not found' });
+  const buffer = await generateResumePdf(resume._id, req.user._id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${(resume.title || 'resume').replace(/\s+/g, '-')}.pdf"`
+  );
+  res.send(buffer);
+
+  AnalyticsEvent.create({ resume: resume._id, type: 'download', format: 'pdf' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
+}));
+
+// PNG export happens entirely client-side (html-to-image) — no server
+// round-trip occurs for it, so the frontend calls this directly after a
+// successful export to log the download. PDF now generates server-side
+// (see /:id/pdf above) and logs its own analytics event directly.
 router.post('/:id/track-download', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id }).select('_id');
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
-  const format = ['pdf', 'png'].includes(req.body.format) ? req.body.format : undefined;
+  const format = req.body.format === 'png' ? 'png' : undefined;
   await AnalyticsEvent.create({ resume: resume._id, type: 'download', format });
   res.status(201).json({ ok: true });
 }));

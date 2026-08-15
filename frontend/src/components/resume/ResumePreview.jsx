@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { getResumeStyle } from '../../config/templates';
+import { getResumeStyle, getPreviewVariant } from '../../config/templates';
 import { renderLayout } from './ResumeLayouts';
 
 // Keep in sync with A4_WIDTH_MM / A4_HEIGHT_MM in ../../utils/exportPreview.js
@@ -13,13 +13,7 @@ const PAGE_GAP_PX = 32; // matches gap-8 below
 export default function ResumePreview({ resume, templateSlug }) {
   const slug = templateSlug || resume?.templateSlug || 'classic-blue';
   const style = resume ? getResumeStyle(resume, slug) : null;
-  const variant = !style
-    ? 'default'
-    : ['minimal', 'tech'].includes(style.layout)
-      ? 'minimal'
-      : style.layout === 'elegant'
-        ? 'elegant'
-        : 'default';
+  const variant = getPreviewVariant(style);
 
   const content = resume ? renderLayout(style.layout, { resume, style, variant }) : null;
 

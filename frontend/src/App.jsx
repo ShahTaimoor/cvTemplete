@@ -43,7 +43,9 @@ function AppRoutes() {
       location.pathname.startsWith('/cover-letter'));
 
   const showPublicNav =
-    !['/login', '/register'].includes(location.pathname) && !usesAppShell;
+    !['/login', '/register'].includes(location.pathname) &&
+    !location.pathname.startsWith('/print') &&
+    !usesAppShell;
 
   return (
     <>
