@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 import { generateToken } from '../utils/generateToken.js';
+import { setTokenCookie, clearTokenCookie } from '../utils/tokenCookie.js';
 import { protect } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -27,12 +28,12 @@ router.post(
       return res.status(400).json({ message: 'Email already registered' });
     }
     const user = await User.create({ name, email, password });
+    setTokenCookie(res, generateToken(user._id));
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       subscription: user.subscription,
-      token: generateToken(user._id),
     });
   })
 );
@@ -50,15 +51,20 @@ router.post(
     if (!user || !(await user.comparePassword(req.body.password))) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+    setTokenCookie(res, generateToken(user._id));
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       subscription: user.subscription,
-      token: generateToken(user._id),
     });
   })
 );
+
+router.post('/logout', (req, res) => {
+  clearTokenCookie(res);
+  res.json({ message: 'Logged out' });
+});
 
 router.get('/me', protect, asyncHandler(async (req, res) => {
   res.json(req.user);

@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initSentry, captureException, setupExpressErrorHandler } from './config/sentry.js';
 import { connectDB } from './config/db.js';
 import { securityMiddleware, apiLimiter } from './middleware/security.js';
+import { doubleCsrfProtection, generateCsrfToken } from './config/csrf.js';
 import authRoutes from './routes/authRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
@@ -41,9 +43,21 @@ app.use(
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(securityMiddleware);
 app.use('/api', apiLimiter);
+// Ensures every /api response carries a valid CSRF cookie — including GET
+// requests and requests made before login — so the frontend always has a
+// token in hand by the time it needs to submit a state-changing request.
+// Reuses an existing valid cookie rather than rotating it on every call.
+app.use('/api', (req, res, next) => {
+  generateCsrfToken(req, res);
+  next();
+});
+// Validates the x-csrf-token header against the cookie for POST/PUT/PATCH/
+// DELETE; GET/HEAD/OPTIONS pass through untouched (csrf-csrf's default).
+app.use('/api', doubleCsrfProtection);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));

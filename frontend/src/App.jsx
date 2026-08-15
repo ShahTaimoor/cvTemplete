@@ -33,10 +33,10 @@ function PageTransition({ children }) {
 
 function AppRoutes() {
   const location = useLocation();
-  const { token } = useSelector((s) => s.auth);
+  const { user } = useSelector((s) => s.auth);
 
   const usesAppShell =
-    token &&
+    user &&
     (location.pathname === '/dashboard' ||
       location.pathname === '/pricing' ||
       location.pathname.startsWith('/builder') ||
@@ -88,11 +88,12 @@ function AppRoutes() {
 
 function App() {
   const dispatch = useDispatch();
-  const { token } = useSelector((s) => s.auth);
 
+  // The auth cookie is httpOnly, so this is the only way to know whether a
+  // session already exists — the cookie (if present) is sent automatically.
   useEffect(() => {
-    if (token) dispatch(fetchMe());
-  }, [token, dispatch]);
+    dispatch(fetchMe());
+  }, [dispatch]);
 
   return (
     <BrowserRouter>

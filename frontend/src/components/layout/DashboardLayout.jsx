@@ -12,7 +12,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { logout } from '../../store/authSlice';
+import { logoutUser } from '../../store/authSlice';
 import { overlayFade, drawerPanel } from '../../lib/motion';
 import Seal from '../common/Seal';
 
@@ -35,7 +35,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
       : location.pathname.startsWith(path);
 
   const handleSignOut = () => {
-    dispatch(logout());
+    dispatch(logoutUser());
     navigate('/');
   };
 

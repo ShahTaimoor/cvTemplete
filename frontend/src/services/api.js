@@ -4,17 +4,32 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  // Auth now rides on an httpOnly cookie the browser attaches automatically
+  // — there is no token in JS for this client to read or send itself.
+  withCredentials: true,
 });
 
+const getCookie = (name) => {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+// Double-submit CSRF: the backend issues a readable (non-httpOnly) cookie
+// on every response; state-changing requests must echo its value back in
+// this header so the backend can confirm the request came from a context
+// that could read the cookie (same-origin), not a cross-site form/script.
+// Harmless to attach on GETs too — the backend only checks it for
+// POST/PUT/PATCH/DELETE.
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const csrfToken = getCookie('csrf-token');
+  if (csrfToken) config.headers['x-csrf-token'] = csrfToken;
   return config;
 });
 
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
 };
 

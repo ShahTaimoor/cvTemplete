@@ -43,7 +43,7 @@ function getDowngradeLosses(planId) {
 }
 
 export default function PricingPage() {
-  const { user, token } = useSelector((s) => s.auth);
+  const { user } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const toast = useToast();
@@ -70,7 +70,7 @@ export default function PricingPage() {
   };
 
   const handleUpgrade = async (planId) => {
-    if (!token) {
+    if (!user) {
       navigate('/register');
       return;
     }
@@ -231,7 +231,7 @@ export default function PricingPage() {
         Prices shown in PKR (Rs.). Demo upgrades apply instantly; connect your payment provider for live billing.
       </p>
 
-      {!token && (
+      {!user && (
         <p className="text-center text-sm text-slate-600 mt-8">
           <Link to="/register" className="font-semibold text-brand-600 hover:underline">
             Create a free account
@@ -242,7 +242,7 @@ export default function PricingPage() {
     </div>
   );
 
-  return token ? (
+  return user ? (
     <DashboardLayout>{content}</DashboardLayout>
   ) : (
     <div className="bg-slate-50 min-h-screen">{content}</div>

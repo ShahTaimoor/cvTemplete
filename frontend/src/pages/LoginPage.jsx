@@ -9,12 +9,12 @@ export default function LoginPage() {
   const { register, handleSubmit } = useForm();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error, token } = useSelector((s) => s.auth);
+  const { loading, error, user } = useSelector((s) => s.auth);
 
   useEffect(() => {
     dispatch(clearError());
-    if (token) navigate('/dashboard');
-  }, [token, navigate, dispatch]);
+    if (user) navigate('/dashboard');
+  }, [user, navigate, dispatch]);
 
   const onSubmit = (data) => {
     dispatch(loginUser(data)).then((r) => {
