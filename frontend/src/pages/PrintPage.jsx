@@ -16,6 +16,13 @@ const API_URL = import.meta.env.VITE_API_URL || '/api';
  * (the single source of truth for all 63 layouts) in plain, natural
  * document flow, and lets @page + the browser's own pagination split it
  * across pages.
+ *
+ * The inner wrapper's width/zoom are driven by a --print-scale CSS custom
+ * property (default 1, i.e. untouched) that pdfService.js sets via
+ * page.evaluate() for short resumes worth filling out — see the comment
+ * there for why zoom + a compensating width, not transform: scale(), is
+ * the mechanism. This route does nothing on its own; a plain visit here
+ * (outside the Puppeteer PDF flow) just renders at scale 1.
  */
 export default function PrintPage() {
   const { id } = useParams();
@@ -52,16 +59,28 @@ export default function PrintPage() {
     <>
       <style>{`
         @page { size: A4; margin: 0; }
-        html, body { margin: 0; padding: 0; background: #fff; }
+        /* The content wrapper below is only as tall as its own content, so
+           any leftover page space (a short resume, or auto-fill scaling
+           hitting its ceiling) falls through to this background — must
+           match the resume's own theme, not a hardcoded white, or a
+           themed resume gets a jarring white gap under real content. */
+        html, body { margin: 0; padding: 0; background: ${style.bg}; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         h1, h2, h3, li, img { break-inside: avoid; }
       `}</style>
-      <div
-        className="resume-preview-root w-[210mm]"
-        style={{ fontFamily: style.font, color: '#1f2937', background: style.bg }}
-        data-print-ready={ready ? 'true' : 'false'}
-      >
-        {renderLayout(style.layout, { resume, style, variant })}
+      <div id="print-page-root" style={{ width: '210mm' }} data-print-ready={ready ? 'true' : 'false'}>
+        <div
+          className="resume-preview-root"
+          style={{
+            width: 'calc(210mm / var(--print-scale, 1))',
+            zoom: 'var(--print-scale, 1)',
+            fontFamily: style.font,
+            color: '#1f2937',
+            background: style.bg,
+          }}
+        >
+          {renderLayout(style.layout, { resume, style, variant })}
+        </div>
       </div>
     </>
   );
