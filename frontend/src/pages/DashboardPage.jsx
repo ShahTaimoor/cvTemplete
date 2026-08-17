@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -19,10 +19,23 @@ import { getTemplatePreset } from '../config/templates';
 // — just sized to the same box, instead of a small corner icon — for
 // resumes that don't have one yet (brand new, or older than this feature).
 // onError swaps back to that same fallback so a broken/expired image URL
-// never renders as a broken-image icon.
-function ResumeCardThumbnail({ resume }) {
+// never renders as a broken-image icon, and also reports the break upward
+// (see onBroken) so the Dashboard can self-heal it in the background.
+//
+// `broken` is local state, so once set it would otherwise stay stuck true
+// forever even after a successful self-heal hands this component a fresh
+// thumbnailUrl — a prop change alone doesn't reset a component's own state.
+// The call site keys this component by thumbnailUrl specifically so a new
+// URL forces a real remount (fresh `broken = false`), giving the recovered
+// image an actual chance to render instead of being stranded on the swatch.
+function ResumeCardThumbnail({ resume, onBroken }) {
   const [broken, setBroken] = useState(false);
   const showImage = !!resume.thumbnailUrl && !broken;
+
+  const handleError = () => {
+    setBroken(true);
+    onBroken?.(resume._id, resume.thumbnailGeneratedAt || null);
+  };
 
   return (
     <div
@@ -36,7 +49,7 @@ function ResumeCardThumbnail({ resume }) {
           alt=""
           className="w-full h-full object-cover object-top"
           loading="lazy"
-          onError={() => setBroken(true)}
+          onError={handleError}
         />
       )}
     </div>
@@ -67,9 +80,10 @@ export default function DashboardPage() {
   const [coverLetters, setCoverLetters] = useState([]);
   const plan = user?.subscription?.plan || 'free';
 
-  // Thumbnail generation on Builder-exit is fire-and-forget and takes a few
-  // seconds — a resume edited moments ago can land here with a still-stale
-  // thumbnailUrl. Rather than re-fetching the whole list (which would swap
+  // Thumbnail generation (on Builder-exit, or the self-healing retry below)
+  // is fire-and-forget and takes a few seconds — a resume can land here, or
+  // go stale here, with a thumbnailUrl that doesn't reflect the latest
+  // generation yet. Rather than re-fetching the whole list (which would swap
   // `list`'s reference and, per the stagger-animation guard below, force
   // every card to remount and replay its entrance animation just because one
   // thumbnail changed), polled updates are kept in this separate map and
@@ -77,55 +91,91 @@ export default function DashboardPage() {
   // therefore `gridKey`, never changes because of this.
   const [thumbnailOverrides, setThumbnailOverrides] = useState({});
 
+  // De-dupes concurrent watchers for the same resume — both the "just
+  // edited" candidate scan below and the self-healing onError path (further
+  // down) can want to watch the same id, and this ensures only one poll
+  // loop, and one regenerate request, is ever in flight for it at a time.
+  const activeRef = useRef(new Set());
+  // Reset on the setup side too, not just set on cleanup — StrictMode's
+  // dev-only mount→cleanup→mount double-invoke would otherwise flip this to
+  // true on the synthetic cleanup and leave it there forever, since nothing
+  // would ever flip it back for the (real) remount that follows.
+  const unmountedRef = useRef(false);
   useEffect(() => {
-    const candidates = list.filter(isThumbnailPending);
-    if (!candidates.length) return;
+    unmountedRef.current = false;
+    return () => { unmountedRef.current = true; };
+  }, []);
+
+  // Shared poller: watches one resume until its thumbnailGeneratedAt moves
+  // on from `baselineGeneratedAt` (a real new generation landed) or a
+  // bounded timeout elapses. Used both for resumes that were just edited
+  // (below) and for resumes a card reports as broken (see
+  // handleThumbnailBroken) — the same mechanism serves both cases, not two
+  // parallel copies of it.
+  const watchThumbnail = useCallback((resumeId, baselineGeneratedAt) => {
+    if (activeRef.current.has(resumeId)) return;
+    activeRef.current.add(resumeId);
 
     const POLL_INTERVAL_MS = 2000;
     const TIMEOUT_MS = 12_000;
     const startedAt = Date.now();
-    // Snapshot each candidate's thumbnailGeneratedAt as it stood when polling
-    // started — completion is "has this value moved on from its baseline",
-    // not "is thumbnailGeneratedAt >= updatedAt": the generation write itself
-    // also bumps updatedAt (Mongoose's own timestamps), landing it a few ms
-    // *after* thumbnailGeneratedAt, which would make that comparison never
-    // resolve to "done" for the very write we're waiting on.
-    const baseline = new Map(candidates.map((r) => [r._id, r.thumbnailGeneratedAt || null]));
-    const pending = new Set(candidates.map((r) => r._id));
-    let cancelled = false;
-    let timer;
 
     const poll = async () => {
-      if (cancelled || !pending.size) return;
-      const results = await Promise.all(
-        [...pending].map((id) => resumeAPI.get(id).then((r) => r.data).catch(() => null))
-      );
-      if (cancelled) return;
+      if (unmountedRef.current) { activeRef.current.delete(resumeId); return; }
+      const data = await resumeAPI.get(resumeId).then((r) => r.data).catch(() => null);
+      if (unmountedRef.current) { activeRef.current.delete(resumeId); return; }
 
-      const updates = {};
-      for (const data of results) {
-        if (!data || !data.thumbnailGeneratedAt) continue;
-        const base = baseline.get(data._id);
-        if (!base || new Date(data.thumbnailGeneratedAt) > new Date(base)) {
-          updates[data._id] = { thumbnailUrl: data.thumbnailUrl, thumbnailGeneratedAt: data.thumbnailGeneratedAt };
-          pending.delete(data._id);
+      // Completion is "has thumbnailGeneratedAt moved on from its baseline",
+      // not "is thumbnailGeneratedAt >= updatedAt": the generation write
+      // itself also bumps updatedAt (Mongoose's own timestamps), landing it
+      // a few ms *after* thumbnailGeneratedAt, which would make that
+      // comparison never resolve to "done" for the very write we're
+      // waiting on.
+      if (data?.thumbnailGeneratedAt &&
+          (!baselineGeneratedAt || new Date(data.thumbnailGeneratedAt) > new Date(baselineGeneratedAt))) {
+        setThumbnailOverrides((prev) => ({
+          ...prev,
+          [resumeId]: { thumbnailUrl: data.thumbnailUrl, thumbnailGeneratedAt: data.thumbnailGeneratedAt },
+        }));
+        activeRef.current.delete(resumeId);
+        return;
+      }
+
+      if (Date.now() - startedAt < TIMEOUT_MS) {
+        setTimeout(poll, POLL_INTERVAL_MS);
+      } else {
+        activeRef.current.delete(resumeId);
+      }
+    };
+
+    setTimeout(poll, POLL_INTERVAL_MS);
+  }, []);
+
+  useEffect(() => {
+    list.filter(isThumbnailPending).forEach((r) => watchThumbnail(r._id, r.thumbnailGeneratedAt || null));
+  }, [list, watchThumbnail]);
+
+  // Self-healing: a card's thumbnailUrl can be correct in the database but
+  // point at a file that's gone missing (see the incident this fixes — local
+  // thumbnail files deleted out from under valid DB references). When that
+  // happens the <img> 404s and ResumeCardThumbnail reports it here — kick
+  // off a regeneration (through the same throttled endpoint Builder-exit
+  // uses, so a burst of simultaneously-broken thumbnails doesn't spam
+  // Puppeteer) and, only if one was actually triggered, watch for it with
+  // the exact same poller used for post-edit updates above.
+  const handleThumbnailBroken = useCallback((resumeId, currentGeneratedAt) => {
+    if (activeRef.current.has(resumeId)) return;
+    activeRef.current.add(resumeId);
+    resumeAPI
+      .regenerateThumbnail(resumeId)
+      .then((res) => {
+        activeRef.current.delete(resumeId);
+        if (res.status === 202) {
+          watchThumbnail(resumeId, currentGeneratedAt);
         }
-      }
-      if (Object.keys(updates).length) {
-        setThumbnailOverrides((prev) => ({ ...prev, ...updates }));
-      }
-
-      if (pending.size && Date.now() - startedAt < TIMEOUT_MS) {
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
-      }
-    };
-
-    timer = setTimeout(poll, POLL_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [list]);
+      })
+      .catch(() => { activeRef.current.delete(resumeId); });
+  }, [watchThumbnail]);
 
   // The resume grid below plays a stagger entrance animation keyed to
   // `animate="visible"` — a static prop that never toggles. If `list` gets a
@@ -301,7 +351,11 @@ export default function DashboardPage() {
               variants={staggerItem}
               className="app-card p-5 hover:border-brand-200 transition-colors"
             >
-              <ResumeCardThumbnail resume={thumbnailOverrides[r._id] ? { ...r, ...thumbnailOverrides[r._id] } : r} />
+              <ResumeCardThumbnail
+                key={thumbnailOverrides[r._id]?.thumbnailUrl ?? r.thumbnailUrl}
+                resume={thumbnailOverrides[r._id] ? { ...r, ...thumbnailOverrides[r._id] } : r}
+                onBroken={handleThumbnailBroken}
+              />
               <h3 className="font-semibold text-slate-900">{r.title}</h3>
               <p className="text-xs text-slate-500 mt-1 capitalize">{r.templateSlug?.replace(/-/g, ' ')}</p>
               <p className="text-xs text-slate-400 mt-2">
