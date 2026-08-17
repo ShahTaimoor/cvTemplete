@@ -13,6 +13,47 @@ import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
 
+// Server-generated screenshot of the resume's actual design (see
+// backend/src/services/thumbnailService.js), regenerated whenever the
+// Builder is exited. Falls back to the existing flat color-swatch treatment
+// — just sized to the same box, instead of a small corner icon — for
+// resumes that don't have one yet (brand new, or older than this feature).
+// onError swaps back to that same fallback so a broken/expired image URL
+// never renders as a broken-image icon.
+function ResumeCardThumbnail({ resume }) {
+  const [broken, setBroken] = useState(false);
+  const showImage = !!resume.thumbnailUrl && !broken;
+
+  return (
+    <div
+      className="w-full aspect-[210/297] rounded-lg mb-3 overflow-hidden bg-slate-100 border border-slate-200"
+      style={!showImage ? { backgroundColor: getTemplatePreset(resume.templateSlug).primary } : undefined}
+      aria-hidden
+    >
+      {showImage && (
+        <img
+          src={resume.thumbnailUrl}
+          alt=""
+          className="w-full h-full object-cover object-top"
+          loading="lazy"
+          onError={() => setBroken(true)}
+        />
+      )}
+    </div>
+  );
+}
+
+// A resume counts as "likely mid-generation" if it was edited very recently
+// but its thumbnail hasn't caught up yet — either never generated, or
+// generated before this latest edit (stale).
+const POLL_CANDIDATE_WINDOW_MS = 30_000;
+const isThumbnailPending = (resume) => {
+  const updatedAt = new Date(resume.updatedAt).getTime();
+  if (Date.now() - updatedAt > POLL_CANDIDATE_WINDOW_MS) return false;
+  const generatedAt = resume.thumbnailGeneratedAt ? new Date(resume.thumbnailGeneratedAt).getTime() : null;
+  return !generatedAt || generatedAt < updatedAt;
+};
+
 export default function DashboardPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -25,6 +66,66 @@ export default function DashboardPage() {
   const [selectedSlug, setSelectedSlug] = useState('classic-blue');
   const [coverLetters, setCoverLetters] = useState([]);
   const plan = user?.subscription?.plan || 'free';
+
+  // Thumbnail generation on Builder-exit is fire-and-forget and takes a few
+  // seconds — a resume edited moments ago can land here with a still-stale
+  // thumbnailUrl. Rather than re-fetching the whole list (which would swap
+  // `list`'s reference and, per the stagger-animation guard below, force
+  // every card to remount and replay its entrance animation just because one
+  // thumbnail changed), polled updates are kept in this separate map and
+  // merged into each card's props at render time — `list` itself, and
+  // therefore `gridKey`, never changes because of this.
+  const [thumbnailOverrides, setThumbnailOverrides] = useState({});
+
+  useEffect(() => {
+    const candidates = list.filter(isThumbnailPending);
+    if (!candidates.length) return;
+
+    const POLL_INTERVAL_MS = 2000;
+    const TIMEOUT_MS = 12_000;
+    const startedAt = Date.now();
+    // Snapshot each candidate's thumbnailGeneratedAt as it stood when polling
+    // started — completion is "has this value moved on from its baseline",
+    // not "is thumbnailGeneratedAt >= updatedAt": the generation write itself
+    // also bumps updatedAt (Mongoose's own timestamps), landing it a few ms
+    // *after* thumbnailGeneratedAt, which would make that comparison never
+    // resolve to "done" for the very write we're waiting on.
+    const baseline = new Map(candidates.map((r) => [r._id, r.thumbnailGeneratedAt || null]));
+    const pending = new Set(candidates.map((r) => r._id));
+    let cancelled = false;
+    let timer;
+
+    const poll = async () => {
+      if (cancelled || !pending.size) return;
+      const results = await Promise.all(
+        [...pending].map((id) => resumeAPI.get(id).then((r) => r.data).catch(() => null))
+      );
+      if (cancelled) return;
+
+      const updates = {};
+      for (const data of results) {
+        if (!data || !data.thumbnailGeneratedAt) continue;
+        const base = baseline.get(data._id);
+        if (!base || new Date(data.thumbnailGeneratedAt) > new Date(base)) {
+          updates[data._id] = { thumbnailUrl: data.thumbnailUrl, thumbnailGeneratedAt: data.thumbnailGeneratedAt };
+          pending.delete(data._id);
+        }
+      }
+      if (Object.keys(updates).length) {
+        setThumbnailOverrides((prev) => ({ ...prev, ...updates }));
+      }
+
+      if (pending.size && Date.now() - startedAt < TIMEOUT_MS) {
+        timer = setTimeout(poll, POLL_INTERVAL_MS);
+      }
+    };
+
+    timer = setTimeout(poll, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [list]);
 
   // The resume grid below plays a stagger entrance animation keyed to
   // `animate="visible"` — a static prop that never toggles. If `list` gets a
@@ -200,11 +301,7 @@ export default function DashboardPage() {
               variants={staggerItem}
               className="app-card p-5 hover:border-brand-200 transition-colors"
             >
-              <div
-                className="h-10 w-10 rounded-lg mb-3"
-                style={{ backgroundColor: getTemplatePreset(r.templateSlug).primary }}
-                aria-hidden
-              />
+              <ResumeCardThumbnail resume={thumbnailOverrides[r._id] ? { ...r, ...thumbnailOverrides[r._id] } : r} />
               <h3 className="font-semibold text-slate-900">{r.title}</h3>
               <p className="text-xs text-slate-500 mt-1 capitalize">{r.templateSlug?.replace(/-/g, ' ')}</p>
               <p className="text-xs text-slate-400 mt-2">

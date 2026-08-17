@@ -8,6 +8,7 @@ import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAcc
 import { analyzeResume } from '../services/atsService.js';
 import { buildResumeDocx } from '../services/docxService.js';
 import { generateResumePdf } from '../services/pdfService.js';
+import { generateResumeThumbnail, saveResumeThumbnail, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -253,6 +254,34 @@ router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
   AnalyticsEvent.create({ resume: resume._id, type: 'download', format: 'pdf' }).catch((err) =>
     console.error('Analytics download tracking failed:', err)
   );
+}));
+
+// Called when the Builder is exited back to the Dashboard, where thumbnails
+// are actually shown — not on every autosave, which would launch a browser
+// far too often. Same Puppeteer-per-request cost as PDF/DOCX export, so
+// shares its rate limiter; the recency check below additionally guards
+// against a user quickly bouncing in and out of the Builder.
+// Fire-and-forget like the analytics logging above: the caller doesn't wait
+// on this either, so respond immediately and do the actual render/upload/
+// save after, rather than holding the connection open across a Puppeteer run.
+router.post('/:id/thumbnail', exportLimiter, asyncHandler(async (req, res) => {
+  const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id })
+    .select('_id thumbnailGeneratedAt');
+  if (!resume) return res.status(404).json({ message: 'Resume not found' });
+
+  if (!shouldRegenerateThumbnail(resume)) {
+    return res.status(204).end();
+  }
+
+  res.status(202).end();
+  (async () => {
+    const buffer = await generateResumeThumbnail(resume._id, req.user._id);
+    const url = await saveResumeThumbnail(buffer);
+    await Resume.findByIdAndUpdate(resume._id, {
+      thumbnailUrl: url,
+      thumbnailGeneratedAt: new Date(),
+    });
+  })().catch((err) => console.error('Thumbnail generation failed:', err));
 }));
 
 // PNG export happens entirely client-side (html-to-image) — no server

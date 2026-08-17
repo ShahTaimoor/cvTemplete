@@ -53,6 +53,32 @@ export default function BuilderPage() {
     dispatch(fetchTemplates());
   }, [plan, dispatch]);
 
+  // Regenerate the Dashboard card thumbnail on the way out, not on every
+  // autosave — the cleanup here fires once when this resume's Builder is
+  // actually left (back to Dashboard, or straight to another resume's
+  // Builder), never mid-edit. Fire-and-forget: nothing here should hold up
+  // the navigation, and the backend throttles/no-ops if we were just here.
+  //
+  // The `mounted` timer guards against React 18 StrictMode's dev-only
+  // mount→cleanup→mount double-invoke (same pattern DashboardPage works
+  // around elsewhere): without it, that synthetic cleanup fires this effect
+  // the instant the Builder opens — before the user has edited anything —
+  // generating a thumbnail from stale/sample content that then throttles
+  // out the real one when the user actually leaves later. StrictMode's
+  // extra pass runs synchronously in the same tick as mount, so a 0ms timer
+  // has not yet fired by the time that synthetic cleanup runs, but always
+  // has by the time a genuine unmount (a real user action) happens.
+  useEffect(() => {
+    let mounted = false;
+    const timer = setTimeout(() => { mounted = true; }, 0);
+    return () => {
+      clearTimeout(timer);
+      if (mounted) {
+        resumeAPI.regenerateThumbnail(id).catch(() => {});
+      }
+    };
+  }, [id]);
+
   // Only hydrate from server when opening this resume — don't overwrite local edits on every Redux update
   useEffect(() => {
     if (current?._id === id) {

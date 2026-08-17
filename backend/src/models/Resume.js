@@ -79,6 +79,8 @@ const resumeSchema = new mongoose.Schema(
     shareToken: { type: String, unique: true, sparse: true },
     isPublic: { type: Boolean, default: false },
     lastAutoSavedAt: { type: Date, default: Date.now },
+    thumbnailUrl: { type: String, default: '' },
+    thumbnailGeneratedAt: { type: Date },
   },
   { timestamps: true }
 );
