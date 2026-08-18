@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FileText, LogOut } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
+import MotionIcon from '../common/MotionIcon';
 
 export default function Navbar() {
   const { user } = useSelector((s) => s.auth);
@@ -34,7 +35,7 @@ export default function Navbar() {
                 }}
                 className="flex items-center gap-1 text-slate-500 hover:text-slate-800 px-2 py-1"
               >
-                <LogOut size={16} />
+                <MotionIcon><LogOut size={16} /></MotionIcon>
                 <span className="hidden sm:inline">Logout</span>
               </button>
             </>

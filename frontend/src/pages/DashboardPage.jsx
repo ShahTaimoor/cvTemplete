@@ -10,8 +10,9 @@ import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
-import { staggerContainer, staggerItem, pageFade } from '../lib/motion';
+import { staggerContainer, staggerItem, pageFade, iconPopIn } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
+import MotionIcon from '../components/common/MotionIcon';
 
 // One real, data-backed nudge for Pro/Premium accounts (see GET
 // /resumes/dashboard-insight) — never a generic filler. Renders nothing at
@@ -44,7 +45,7 @@ function InsightBanner({ insight }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-burgundy">This week's activity</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {insight.items.map((item) => (
+          {insight.items.map((item, i) => (
             <div
               key={item.resumeId}
               className="flex items-center gap-2.5 rounded-lg border border-burgundy/15 bg-white px-3 py-1.5 max-w-full"
@@ -52,12 +53,12 @@ function InsightBanner({ insight }) {
               <span className="text-sm font-medium text-graphite truncate max-w-[160px]">{item.resumeTitle}</span>
               {item.views > 0 && (
                 <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
-                  <Eye size={13} /> {item.views}
+                  <motion.span {...iconPopIn(0.15 + i * 0.05)}><Eye size={13} /></motion.span> {item.views}
                 </span>
               )}
               {item.downloads > 0 && (
                 <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
-                  <Download size={13} /> {item.downloads}
+                  <motion.span {...iconPopIn(0.15 + i * 0.05)}><Download size={13} /></motion.span> {item.downloads}
                 </span>
               )}
             </div>
@@ -347,37 +348,42 @@ export default function DashboardPage() {
             <p className="text-slate-600 mt-1">Manage resumes and pick templates for your next application.</p>
           </div>
           <button type="button" onClick={() => setShowNew(!showNew)} className="app-btn-primary shrink-0">
-            <Plus size={18} className="mr-2" />
+            <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
             New resume
           </button>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-4 mb-8">
-          <div className="app-card p-5">
+        <motion.div
+          className="grid sm:grid-cols-3 gap-4 mb-8"
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer()}
+        >
+          <motion.div variants={staggerItem} className="app-card p-5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
-              <FileText size={16} />
+              <motion.span {...iconPopIn(0.1)}><FileText size={16} /></motion.span>
             </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resumes</p>
             <p className="text-3xl font-bold text-slate-900 mt-1">{list.length}</p>
-          </div>
-          <div className="app-card p-5">
+          </motion.div>
+          <motion.div variants={staggerItem} className="app-card p-5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brass/15 text-brass mb-2">
-              <Crown size={16} />
+              <motion.span {...iconPopIn(0.15)}><Crown size={16} /></motion.span>
             </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current plan</p>
             <p className="text-3xl font-bold text-slate-900 mt-1 capitalize">{plan}</p>
-          </div>
-          <div className="app-card p-5">
+          </motion.div>
+          <motion.div variants={staggerItem} className="app-card p-5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
-              <LayoutTemplate size={16} />
+              <motion.span {...iconPopIn(0.2)}><LayoutTemplate size={16} /></motion.span>
             </span>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Templates</p>
             <p className="text-3xl font-bold text-slate-900 mt-1">{templates.length || '—'}</p>
             <Link to="/pricing" className="text-sm text-brand-600 font-medium mt-2 inline-block hover:underline">
               Upgrade for more
             </Link>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         <InsightBanner insight={insight} />
 
@@ -448,7 +454,7 @@ export default function DashboardPage() {
                   onClick={() => duplicateResume(r._id, r.title)}
                   className="app-btn-secondary !p-2"
                 >
-                  <Copy size={18} />
+                  <MotionIcon><Copy size={18} /></MotionIcon>
                 </button>
                 {plan === 'premium' && (
                   <button
@@ -457,7 +463,7 @@ export default function DashboardPage() {
                     onClick={() => newCoverLetter(r._id)}
                     className="app-btn-secondary !p-2 text-brand-600"
                   >
-                    <Mail size={18} />
+                    <MotionIcon><Mail size={18} /></MotionIcon>
                   </button>
                 )}
                 <button
@@ -465,7 +471,7 @@ export default function DashboardPage() {
                   onClick={() => deleteResume(r._id)}
                   className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
                 >
-                  <Trash2 size={18} />
+                  <MotionIcon><Trash2 size={18} /></MotionIcon>
                 </button>
               </div>
             </motion.article>
@@ -476,7 +482,7 @@ export default function DashboardPage() {
               <p className="text-slate-600 font-medium">No resumes yet</p>
               <p className="text-sm text-slate-500 mt-1">Create your first resume — we add sample content automatically.</p>
               <button type="button" onClick={() => setShowNew(true)} className="app-btn-primary mt-4">
-                <Plus size={18} className="mr-2" />
+                <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
                 Create resume
               </button>
             </div>

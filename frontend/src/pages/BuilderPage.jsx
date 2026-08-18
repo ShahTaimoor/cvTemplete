@@ -16,6 +16,7 @@ import { useToast } from '../hooks/useToast';
 import { getTemplatePreset } from '../config/templates';
 import { exportElementToPng } from '../utils/exportPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import MotionIcon from '../components/common/MotionIcon';
 
 export default function BuilderPage() {
   const { id } = useParams();
@@ -281,31 +282,31 @@ export default function BuilderPage() {
               showTemplates ? 'app-btn-primary' : 'app-btn-secondary'
             }`}
           >
-            <LayoutTemplate size={14} /> <span className="hidden sm:inline">Templates</span>
+            <MotionIcon><LayoutTemplate size={14} /></MotionIcon> <span className="hidden sm:inline">Templates</span>
           </button>
           <button type="button" onClick={() => setShowVersions(!showVersions)} className="app-btn-secondary !py-1.5 !px-2 sm:!px-3">
-            <History size={14} />
+            <MotionIcon><History size={14} /></MotionIcon>
           </button>
           <button
             type="button"
             onClick={() => setShowAnalytics(true)}
             className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm"
           >
-            <LineChart size={14} /> Analytics
+            <MotionIcon><LineChart size={14} /></MotionIcon> Analytics
           </button>
           {['pro', 'premium'].includes(plan) && (
             <button type="button" onClick={runAts} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-              <BarChart3 size={14} /> ATS
+              <MotionIcon><BarChart3 size={14} /></MotionIcon> ATS
             </button>
           )}
           {plan === 'premium' && (
             <button type="button" onClick={shareResume} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-              <Share2 size={14} /> Share
+              <MotionIcon><Share2 size={14} /></MotionIcon> Share
             </button>
           )}
           {plan === 'premium' && (
             <button type="button" onClick={createCoverLetter} className="app-btn-secondary !py-1.5 !px-2 sm:!px-3 gap-1 text-xs sm:text-sm">
-              <Mail size={14} /> <span className="hidden sm:inline">Cover</span>
+              <MotionIcon><Mail size={14} /></MotionIcon> <span className="hidden sm:inline">Cover</span>
             </button>
           )}
           <button
@@ -314,13 +315,13 @@ export default function BuilderPage() {
             disabled={exporting}
             className="app-btn-primary !py-1.5 !px-2 sm:!px-3 gap-1 text-xs sm:text-sm disabled:opacity-50"
           >
-            <Download size={14} /> {exporting ? '...' : 'PDF'}
+            <MotionIcon><Download size={14} /></MotionIcon> {exporting ? '...' : 'PDF'}
           </button>
           <button type="button" onClick={downloadDocx} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-            <FileType size={14} /> DOCX
+            <MotionIcon><FileType size={14} /></MotionIcon> DOCX
           </button>
           <button type="button" onClick={downloadPng} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-            <FileImage size={14} /> PNG
+            <MotionIcon><FileImage size={14} /></MotionIcon> PNG
           </button>
         </div>
       </div>
@@ -386,7 +387,7 @@ export default function BuilderPage() {
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   aria-label="Close templates"
                 >
-                  <X size={18} />
+                  <MotionIcon rotate={90}><X size={18} /></MotionIcon>
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 min-h-0">

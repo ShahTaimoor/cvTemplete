@@ -62,3 +62,12 @@ export const staggerItem = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE } },
 };
+
+/** A small delayed pop for a decorative/informational icon (not a click
+ * target) inside a card or banner that's itself already entering — reads as
+ * "the icon arrives a beat after its container", not a second competing
+ * animation. Pass a `delay` (seconds) to stagger multiple icons. */
+export const iconPopIn = (delay = 0) => ({
+  initial: { opacity: 0, scale: 0.5 },
+  animate: { opacity: 1, scale: 1, transition: { duration: DURATION.base, ease: EASE, delay } },
+});

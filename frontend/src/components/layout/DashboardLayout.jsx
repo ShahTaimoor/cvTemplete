@@ -2,24 +2,78 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  LayoutDashboard,
-  CreditCard,
-  LogOut,
-  Crown,
-  PenLine,
-  Mail,
-  Menu,
-  X,
-} from 'lucide-react';
+import { PenLine, Mail } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import { overlayFade, drawerPanel } from '../../lib/motion';
 import Seal from '../common/Seal';
+import HamburgerIcon from '../common/HamburgerIcon';
+import DashboardGridIcon from '../common/DashboardGridIcon';
+import CreditCardShineIcon from '../common/CreditCardShineIcon';
+import CrownSparkleIcon from '../common/CrownSparkleIcon';
+import LogOutSlideIcon from '../common/LogOutSlideIcon';
 
 const NAV = [
-  { to: '/dashboard', label: 'My Resumes', icon: LayoutDashboard },
-  { to: '/pricing', label: 'Plans & Pricing', icon: CreditCard },
+  { to: '/dashboard', label: 'My Resumes', icon: DashboardGridIcon },
+  { to: '/pricing', label: 'Plans & Pricing', icon: CreditCardShineIcon },
 ];
+
+// Each of these three own their own hover state locally — hooks can't live
+// inside renderNavAndFooter below, since it's a plain function (not a
+// component) called up to twice per render (desktop aside + mobile drawer),
+// which would violate the rules of hooks. The custom icons themselves only
+// take a plain `hovered` boolean, driven by the whole row/button/badge —
+// not just the icon's own small bounding box — so hovering anywhere on the
+// control triggers its animation, matching how these rows already
+// highlight via their own hover: background classes.
+function NavItem({ to, label, Icon, active, onNavigate }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? 'bg-brand-50 text-brand-700'
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+      }`}
+    >
+      <Icon hovered={hovered} size={18} />
+      {label}
+    </Link>
+  );
+}
+
+function PlanBadge({ plan }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 mb-3"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <CrownSparkleIcon hovered={hovered} size={16} className="text-brass" />
+      <span className="text-xs font-semibold text-slate-700 capitalize">{plan} plan</span>
+    </div>
+  );
+}
+
+function SignOutButton({ onSignOut }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onSignOut}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
+    >
+      <LogOutSlideIcon hovered={hovered} size={16} />
+      Sign out
+    </button>
+  );
+}
 
 export default function DashboardLayout({ children, fullHeight = false }) {
   const location = useLocation();
@@ -45,19 +99,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
     <>
       <nav className="flex-1 p-4 space-y-1">
         {NAV.map(({ to, label, icon: Icon }) => (
-          <Link
-            key={to}
-            to={to}
-            onClick={onNavigate}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              isActive(to)
-                ? 'bg-brand-50 text-brand-700'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <Icon size={18} />
-            {label}
-          </Link>
+          <NavItem key={to} to={to} label={label} Icon={Icon} active={isActive(to)} onNavigate={onNavigate} />
         ))}
         {location.pathname.startsWith('/builder') && (
           <span className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-brand-50 text-brand-700">
@@ -74,19 +116,9 @@ export default function DashboardLayout({ children, fullHeight = false }) {
       </nav>
 
       <div className="p-4 border-t border-slate-200">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 mb-3">
-          <Crown size={16} className="text-brass" />
-          <span className="text-xs font-semibold text-slate-700 capitalize">{plan} plan</span>
-        </div>
+        <PlanBadge plan={plan} />
         <p className="px-3 text-xs text-slate-500 truncate mb-2">{user?.email}</p>
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg"
-        >
-          <LogOut size={16} />
-          Sign out
-        </button>
+        <SignOutButton onSignOut={handleSignOut} />
       </div>
     </>
   );
@@ -106,7 +138,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
       <AnimatePresence>
         {mobileNavOpen && (
           <motion.div
-            className="md:hidden fixed inset-0 z-50 bg-slate-900/60 flex"
+            className="md:hidden fixed inset-0 z-50 bg-slate-900/60 flex cursor-pointer"
             onClick={() => setMobileNavOpen(false)}
             initial={overlayFade.initial}
             animate={overlayFade.animate}
@@ -114,7 +146,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             transition={overlayFade.transition}
           >
             <motion.div
-              className="w-64 max-w-[80vw] h-full bg-white flex flex-col shadow-xl"
+              className="w-64 max-w-[80vw] h-full bg-white flex flex-col shadow-xl cursor-default"
               onClick={(e) => e.stopPropagation()}
               initial={drawerPanel.initial}
               animate={drawerPanel.animate}
@@ -136,7 +168,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
                   aria-label="Close menu"
                   className="text-slate-500 hover:text-slate-800"
                 >
-                  <X size={20} />
+                  <HamburgerIcon open size={20} />
                 </button>
               </div>
               {renderNavAndFooter(() => setMobileNavOpen(false))}
@@ -153,7 +185,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             aria-label="Open menu"
             className="text-slate-600 hover:text-slate-900"
           >
-            <Menu size={22} />
+            <HamburgerIcon open={mobileNavOpen} />
           </button>
           <Link to="/dashboard" className="font-bold text-slate-900 flex items-center gap-2">
             <Seal size={24} />
