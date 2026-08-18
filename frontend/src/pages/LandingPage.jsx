@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, useScroll, useTransform } from 'framer-motion';
 import { Shield, ArrowRight } from 'lucide-react';
 import Seal from '../components/common/Seal';
 import FileTextFanIcon from '../components/common/FileTextFanIcon';
@@ -172,22 +172,63 @@ export default function LandingPage() {
   const ctaRef = useRef(null);
   const ctaInView = useInView(ctaRef, { once: true, amount: 0.4 });
 
+  // Whole-page scroll tracking, distinct from and additive to the
+  // entrance/hover animations above: drives the top progress bar directly,
+  // and the hero orbs' parallax drift below (scrollY, in raw px).
+  const { scrollY, scrollYProgress } = useScroll();
+  const orb1Y = useTransform(scrollY, [0, 800], [0, -100]);
+  const orb2Y = useTransform(scrollY, [0, 800], [0, 70]);
+
+  // Scoped separately to the features section itself (not the whole page)
+  // so the parallax offset reflects scroll progress *through that section*
+  // specifically — 0 as it enters the viewport, 1 as it leaves — rather
+  // than the page as a whole.
+  const featuresRef = useRef(null);
+  const { scrollYProgress: featuresProgress } = useScroll({
+    target: featuresRef,
+    offset: ['start end', 'end start'],
+  });
+  const featuresParallaxY = useTransform(featuresProgress, [0, 1], [-14, 14]);
+
   return (
     <div className="bg-white">
+      {/* Scroll progress indicator — fixed to the viewport top, above the
+          Navbar, only mounted while this page is (unmounts on navigation,
+          so it never leaks into other routes). */}
+      <motion.div
+        aria-hidden
+        className="fixed top-0 inset-x-0 h-[3px] bg-brass origin-left z-[60] pointer-events-none"
+        style={{ scaleX: scrollYProgress }}
+      />
+
       <section className="relative overflow-hidden border-b border-slate-200 bg-mist">
-        {/* Floating decorative orbs — subtle parallax-style ambient motion */}
+        {/* Floating decorative orbs — existing ambient bob/scale motion lives
+            on the inner element, untouched; the outer wrapper adds a
+            scroll-linked parallax drift on top via a plain style MotionValue,
+            so the two motions compose independently instead of fighting over
+            the same `animate` prop. */}
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-brand-200/40 blur-3xl"
-          animate={{ y: [0, -22, 0], scale: [1, 1.06, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
+          className="pointer-events-none absolute -top-24 -right-24 h-96 w-96"
+          style={{ y: orb1Y }}
+        >
+          <motion.div
+            className="h-full w-full rounded-full bg-brand-200/40 blur-3xl"
+            animate={{ y: [0, -22, 0], scale: [1, 1.06, 1] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </motion.div>
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute top-1/3 -left-20 h-72 w-72 rounded-full bg-brass/15 blur-3xl"
-          animate={{ y: [0, 18, 0], scale: [1, 1.08, 1] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        />
+          className="pointer-events-none absolute top-1/3 -left-20 h-72 w-72"
+          style={{ y: orb2Y }}
+        >
+          <motion.div
+            className="h-full w-full rounded-full bg-brass/15 blur-3xl"
+            animate={{ y: [0, 18, 0], scale: [1, 1.08, 1] }}
+            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          />
+        </motion.div>
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
           <motion.div
@@ -250,7 +291,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
+      <section ref={featuresRef} className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
         <motion.h2
           className="text-2xl font-medium text-brand-600 text-center mb-10"
           style={{ fontFamily: 'var(--font-display)' }}
@@ -261,16 +302,23 @@ export default function LandingPage() {
         >
           Everything you need to get hired
         </motion.h2>
-        <motion.div
-          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={featuresContainer}
-        >
-          {features.map(({ icon: Icon, title, desc }) => (
-            <FeatureCard key={title} Icon={Icon} title={title} desc={desc} />
-          ))}
+        {/* Subtle scroll-through parallax (±14px) layered on the outer
+            wrapper's style, independent of the inner motion.div's own
+            scroll-triggered stagger entrance (initial/whileInView/variants
+            below) — same nested-motion-elements composition pattern as the
+            hero orbs above. */}
+        <motion.div style={{ y: featuresParallaxY }}>
+          <motion.div
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={featuresContainer}
+          >
+            {features.map(({ icon: Icon, title, desc }) => (
+              <FeatureCard key={title} Icon={Icon} title={title} desc={desc} />
+            ))}
+          </motion.div>
         </motion.div>
       </section>
 
