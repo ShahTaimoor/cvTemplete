@@ -13,6 +13,7 @@ import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem, pageFade, iconPopIn } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
 import MotionIcon from '../components/common/MotionIcon';
+import Skeleton from '../components/common/Skeleton';
 
 // One real, data-backed nudge for Pro/Premium accounts (see GET
 // /resumes/dashboard-insight) — never a generic filler. Renders nothing at
@@ -85,6 +86,37 @@ function InsightBanner({ insight }) {
   );
 }
 
+// Shape-matched placeholders for the loading state above — shown only while
+// the data they stand in for is genuinely still in flight (see
+// resumesLoaded/templatesLoaded/insightLoaded below), never as a fabricated
+// delay. InsightBannerSkeleton approximates the wider of the two real
+// InsightBanner variants (the chip row) since which one will land isn't
+// known yet.
+function StatCardSkeleton() {
+  return (
+    <div className="app-card p-5">
+      <Skeleton shape="rounded" width={32} height={32} className="mb-2" />
+      <Skeleton shape="rounded" width={90} height={10} className="mb-2.5" />
+      <Skeleton shape="rounded" width={56} height={28} />
+    </div>
+  );
+}
+
+function InsightBannerSkeleton() {
+  return (
+    <div className="mb-8 rounded-xl border border-burgundy/20 bg-burgundy/5 px-4 py-3.5">
+      <div className="flex items-center gap-2 mb-2.5">
+        <Skeleton shape="rounded" width={28} height={28} />
+        <Skeleton shape="rounded" width={150} height={10} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Skeleton shape="rounded" width={150} height={32} />
+        <Skeleton shape="rounded" width={130} height={32} />
+      </div>
+    </div>
+  );
+}
+
 // Server-generated screenshot of the resume's actual design (see
 // backend/src/services/thumbnailService.js), regenerated whenever the
 // Builder is exited. Falls back to the existing flat color-swatch treatment
@@ -128,6 +160,23 @@ function ResumeCardThumbnail({ resume, onBroken }) {
   );
 }
 
+// Mirrors the real card's thumbnail + title + meta + button-row layout below.
+function ResumeCardSkeleton() {
+  return (
+    <div className="app-card p-5">
+      <Skeleton shape="rounded" className="w-full aspect-[210/297] mb-3" />
+      <Skeleton shape="rounded" width="70%" height={16} className="mb-2" />
+      <Skeleton shape="rounded" width="45%" height={10} className="mb-2" />
+      <Skeleton shape="rounded" width="55%" height={10} />
+      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+        <Skeleton shape="rounded" className="flex-1 min-w-[80px]" height={38} />
+        <Skeleton shape="rounded" width={38} height={38} />
+        <Skeleton shape="rounded" width={38} height={38} />
+      </div>
+    </div>
+  );
+}
+
 // A resume counts as "likely mid-generation" if it was edited very recently
 // but its thumbnail hasn't caught up yet — either never generated, or
 // generated before this latest edit (stale).
@@ -152,6 +201,15 @@ export default function DashboardPage() {
   const [coverLetters, setCoverLetters] = useState([]);
   const [insight, setInsight] = useState(null);
   const plan = user?.subscription?.plan || 'free';
+
+  // Start true (not derived from list/templates.length, which are both `[]`
+  // whether "still loading" or "genuinely empty") and flip false once each
+  // fetch has actually settled — the only way to distinguish "haven't
+  // loaded yet" from "loaded, and there's nothing there" so the skeleton
+  // shows for a genuine load and never lingers or flashes incorrectly.
+  const [resumesLoaded, setResumesLoaded] = useState(false);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+  const [insightLoaded, setInsightLoaded] = useState(false);
 
   // Thumbnail generation (on Builder-exit, or the self-healing retry below)
   // is fire-and-forget and takes a few seconds — a resume can land here, or
@@ -282,13 +340,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (fetchedForPlanRef.current === plan) return;
     fetchedForPlanRef.current = plan;
-    dispatch(fetchResumes());
-    dispatch(fetchTemplates());
+    dispatch(fetchResumes()).finally(() => setResumesLoaded(true));
+    dispatch(fetchTemplates()).finally(() => setTemplatesLoaded(true));
     if (plan === 'premium') {
       coverLetterAPI.list().then((r) => setCoverLetters(r.data)).catch(() => {});
     }
     if (['pro', 'premium'].includes(plan)) {
-      resumeAPI.dashboardInsight().then((r) => setInsight(r.data)).catch(() => {});
+      resumeAPI.dashboardInsight().then((r) => setInsight(r.data)).catch(() => {}).finally(() => setInsightLoaded(true));
+    } else {
+      setInsightLoaded(true);
     }
   }, [dispatch, plan]);
 
@@ -353,44 +413,57 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <motion.div
-          className="grid sm:grid-cols-3 gap-4 mb-8"
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer()}
-        >
-          <motion.div variants={staggerItem} className="app-card p-5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
-              <motion.span {...iconPopIn(0.1)}><FileText size={16} /></motion.span>
-            </span>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resumes</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{list.length}</p>
+        {!resumesLoaded || !templatesLoaded ? (
+          <div className="grid sm:grid-cols-3 gap-4 mb-8">
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </div>
+        ) : (
+          <motion.div
+            className="grid sm:grid-cols-3 gap-4 mb-8"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer()}
+          >
+            <motion.div variants={staggerItem} className="app-card p-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
+                <motion.span {...iconPopIn(0.1)}><FileText size={16} /></motion.span>
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resumes</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">{list.length}</p>
+            </motion.div>
+            <motion.div variants={staggerItem} className="app-card p-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brass/15 text-brass mb-2">
+                <motion.span {...iconPopIn(0.15)}><Crown size={16} /></motion.span>
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current plan</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1 capitalize">{plan}</p>
+            </motion.div>
+            <motion.div variants={staggerItem} className="app-card p-5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
+                <motion.span {...iconPopIn(0.2)}><LayoutTemplate size={16} /></motion.span>
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Templates</p>
+              <p className="text-3xl font-bold text-slate-900 mt-1">{templates.length || '—'}</p>
+              <Link to="/pricing" className="text-sm text-brand-600 font-medium mt-2 inline-block hover:underline">
+                Upgrade for more
+              </Link>
+            </motion.div>
           </motion.div>
-          <motion.div variants={staggerItem} className="app-card p-5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brass/15 text-brass mb-2">
-              <motion.span {...iconPopIn(0.15)}><Crown size={16} /></motion.span>
-            </span>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Current plan</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1 capitalize">{plan}</p>
-          </motion.div>
-          <motion.div variants={staggerItem} className="app-card p-5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-2">
-              <motion.span {...iconPopIn(0.2)}><LayoutTemplate size={16} /></motion.span>
-            </span>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Templates</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{templates.length || '—'}</p>
-            <Link to="/pricing" className="text-sm text-brand-600 font-medium mt-2 inline-block hover:underline">
-              Upgrade for more
-            </Link>
-          </motion.div>
-        </motion.div>
+        )}
 
-        <InsightBanner insight={insight} />
+        {['pro', 'premium'].includes(plan) && !insightLoaded ? (
+          <InsightBannerSkeleton />
+        ) : (
+          <InsightBanner insight={insight} />
+        )}
 
         <AnimatePresence>
           {showNew && (
             <TemplatePickerModal
               templates={templates}
+              loading={!templatesLoaded}
               selectedSlug={selectedSlug}
               onSelect={(tpl) => !tpl.locked && setSelectedSlug(tpl.slug)}
               onClose={() => setShowNew(false)}
@@ -421,6 +494,13 @@ export default function DashboardPage() {
         )}
 
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Your resumes</h2>
+        {!resumesLoaded ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <ResumeCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
         <motion.div
           key={gridKey}
           className="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
@@ -488,6 +568,7 @@ export default function DashboardPage() {
             </div>
           )}
         </motion.div>
+        )}
       </div>
     </DashboardLayout>
   );

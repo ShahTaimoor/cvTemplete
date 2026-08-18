@@ -6,6 +6,7 @@ import { overlayFade, modalCard } from '../../lib/motion';
 
 export default function TemplatePickerModal({
   templates,
+  loading = false,
   selectedSlug,
   onSelect,
   onClose,
@@ -63,7 +64,7 @@ export default function TemplatePickerModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <TemplateGallery templates={templates} selectedSlug={selectedSlug} onSelect={onSelect} />
+          <TemplateGallery templates={templates} loading={loading} selectedSlug={selectedSlug} onSelect={onSelect} />
         </div>
 
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 shrink-0 bg-slate-50/60 rounded-b-xl">

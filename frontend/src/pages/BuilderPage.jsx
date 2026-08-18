@@ -17,6 +17,45 @@ import { getTemplatePreset } from '../config/templates';
 import { exportElementToPng } from '../utils/exportPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MotionIcon from '../components/common/MotionIcon';
+import Skeleton from '../components/common/Skeleton';
+
+// Shape-matched placeholder for the initial resume-fetch loading state
+// below (`if (!localResume)`) — mirrors the real header bar (back link +
+// title + saved-status, then a row of action buttons) and the two-column
+// form/preview layout, instead of the previous plain "Loading resume..."
+// text on an otherwise blank page.
+function BuilderSkeleton() {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
+        <div className="flex items-center gap-3">
+          <Skeleton shape="rounded" width={70} height={12} className="hidden sm:block" />
+          <Skeleton shape="rounded" width={150} height={16} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skeleton shape="rounded" width={84} height={30} />
+          <Skeleton shape="rounded" width={34} height={30} />
+          <Skeleton shape="rounded" width={94} height={30} className="hidden sm:block" />
+          <Skeleton shape="rounded" width={70} height={30} />
+        </div>
+      </div>
+      <div className="flex-1 grid lg:grid-cols-2 overflow-hidden">
+        <div className="flex flex-col gap-4 p-4 border-r border-slate-200 bg-white overflow-hidden">
+          <Skeleton shape="rounded" width="35%" height={14} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton shape="rounded" width="28%" height={10} />
+              <Skeleton shape="rounded" className="w-full" height={40} />
+            </div>
+          ))}
+        </div>
+        <div className="p-4 bg-slate-200 hidden lg:flex items-center justify-center">
+          <Skeleton shape="rounded" className="w-full max-w-md aspect-[210/297]" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function BuilderPage() {
   const { id } = useParams();
@@ -235,7 +274,7 @@ export default function BuilderPage() {
   if (!localResume) {
     return (
       <DashboardLayout fullHeight>
-        <div className="h-full flex items-center justify-center text-slate-500">Loading resume...</div>
+        <BuilderSkeleton />
       </DashboardLayout>
     );
   }

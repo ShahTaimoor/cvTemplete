@@ -3,6 +3,23 @@ import { Check, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getTemplatePreset } from '../../config/templates';
 import TemplateThumbnail from './TemplateThumbnail';
+import Skeleton from '../common/Skeleton';
+
+// Mirrors TemplateCard's shape: colored header block containing the
+// thumbnail-shaped area, then a category-tag line and a title line.
+export function TemplateCardSkeleton() {
+  return (
+    <div className="rounded-xl overflow-hidden border-2 border-slate-200 bg-white">
+      <div className="p-3 pb-3 bg-brand-50">
+        <div className="bg-white/70 rounded-lg p-2">
+          <Skeleton shape="rounded" className="w-full aspect-[210/297]" />
+        </div>
+        <Skeleton shape="rounded" width="50%" height={8} className="mt-3 mb-1.5" />
+        <Skeleton shape="rounded" width="75%" height={12} />
+      </div>
+    </div>
+  );
+}
 
 export default function TemplateCard({ template, onSelect, selected }) {
   const preset = getTemplatePreset(template.slug);

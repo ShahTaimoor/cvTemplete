@@ -9,9 +9,11 @@ import {
   filterTemplates,
 } from '../../config/templateFilters';
 import { withTemplateSlug } from '../../data/sampleResume';
-import TemplateCard from '../templates/TemplateCard';
+import TemplateCard, { TemplateCardSkeleton } from '../templates/TemplateCard';
 import ResumePreview from '../resume/ResumePreview';
 import { staggerContainer, staggerItem } from '../../lib/motion';
+
+const SKELETON_CARD_COUNT = 8;
 
 const PAGE_SIZE = 24;
 
@@ -36,6 +38,7 @@ export default function TemplateGallery({
   onSelect,
   compact = false,
   totalCount,
+  loading = false,
 }) {
   const [filter, setFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
@@ -189,94 +192,104 @@ export default function TemplateGallery({
         ))}
       </div>
 
-      <p ref={gridTopRef} className="text-xs text-slate-500 mb-3">
-        Showing {rangeStart}–{rangeEnd} of {filtered.length} templates
-        {filtered.length !== allCount ? ` (${allCount} total)` : ''}
-        {activeLabel ? ` · ${activeLabel}` : ''}
-        {!compact && ' — click Preview for sample data'}
-      </p>
-
-      {filtered.length === 0 && (
-        <p className="text-sm text-slate-500 py-8 text-center">
-          No templates match. Try{' '}
-          <button
-            type="button"
-            className="text-brand-600 font-medium"
-            onClick={() => {
-              setFilter('all');
-              setCountryFilter('all');
-              setRegionFilter('all');
-              setPlanFilter('all');
-              setSearch('');
-            }}
-          >
-            reset filters
-          </button>
-        </p>
-      )}
-
-      <motion.div
-        key={currentPage}
-        className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}
-        initial="hidden"
-        animate="visible"
-        variants={staggerContainer(0.02)}
-      >
-        {pageItems.map((t) => (
-          <motion.div key={t.slug || t._id} variants={staggerItem} className="space-y-2">
-            <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
-            {!compact && (
-              <button
-                type="button"
-                onClick={() => setPreviewSlug(t.slug)}
-                className="w-full text-xs py-1 text-slate-500 hover:text-brand-600 font-medium"
-              >
-                Preview with sample data
-              </button>
-            )}
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6">
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
-          >
-            Prev
-          </button>
-          {getPageNumbers(currentPage, totalPages).map((n, i) =>
-            n === '…' ? (
-              <span key={`ellipsis-${i}`} className="px-1.5 text-xs text-slate-400">
-                …
-              </span>
-            ) : (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setPage(n)}
-                className={`min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-medium border ${
-                  n === currentPage
-                    ? 'bg-brand-600 text-white border-brand-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                {n}
-              </button>
-            )
-          )}
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+      {loading ? (
+        <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+          {Array.from({ length: SKELETON_CARD_COUNT }).map((_, i) => (
+            <TemplateCardSkeleton key={i} />
+          ))}
         </div>
+      ) : (
+        <>
+          <p ref={gridTopRef} className="text-xs text-slate-500 mb-3">
+            Showing {rangeStart}–{rangeEnd} of {filtered.length} templates
+            {filtered.length !== allCount ? ` (${allCount} total)` : ''}
+            {activeLabel ? ` · ${activeLabel}` : ''}
+            {!compact && ' — click Preview for sample data'}
+          </p>
+
+          {filtered.length === 0 && (
+            <p className="text-sm text-slate-500 py-8 text-center">
+              No templates match. Try{' '}
+              <button
+                type="button"
+                className="text-brand-600 font-medium"
+                onClick={() => {
+                  setFilter('all');
+                  setCountryFilter('all');
+                  setRegionFilter('all');
+                  setPlanFilter('all');
+                  setSearch('');
+                }}
+              >
+                reset filters
+              </button>
+            </p>
+          )}
+
+          <motion.div
+            key={currentPage}
+            className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer(0.02)}
+          >
+            {pageItems.map((t) => (
+              <motion.div key={t.slug || t._id} variants={staggerItem} className="space-y-2">
+                <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
+                {!compact && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSlug(t.slug)}
+                    className="w-full text-xs py-1 text-slate-500 hover:text-brand-600 font-medium"
+                  >
+                    Preview with sample data
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              {getPageNumbers(currentPage, totalPages).map((n, i) =>
+                n === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-1.5 text-xs text-slate-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    className={`min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-medium border ${
+                      n === currentPage
+                        ? 'bg-brand-600 text-white border-brand-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {previewSlug && previewTemplate && (
