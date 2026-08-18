@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PenLine, Mail } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import { overlayFade, drawerPanel } from '../../lib/motion';
-import Seal from '../common/Seal';
 import HamburgerIcon from '../common/HamburgerIcon';
 import DashboardGridIcon from '../common/DashboardGridIcon';
 import CreditCardShineIcon from '../common/CreditCardShineIcon';
@@ -128,7 +127,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white sticky top-0 h-screen overflow-y-auto">
         <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200">
           <Link to="/dashboard" className="flex items-center gap-2 font-bold text-slate-900">
-            <Seal size={32} />
+            <img src="/logo.png" alt="ResumeForge" className="h-8 w-8 object-contain shrink-0" />
             ResumeForge
           </Link>
         </div>
@@ -159,7 +158,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
                   className="flex items-center gap-2 font-bold text-slate-900"
                   onClick={() => setMobileNavOpen(false)}
                 >
-                  <Seal size={32} />
+                  <img src="/logo.png" alt="ResumeForge" className="h-8 w-8 object-contain shrink-0" />
                   ResumeForge
                 </Link>
                 <button
@@ -188,7 +187,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             <HamburgerIcon open={mobileNavOpen} />
           </button>
           <Link to="/dashboard" className="font-bold text-slate-900 flex items-center gap-2">
-            <Seal size={24} />
+            <img src="/logo.png" alt="ResumeForge" className="h-6 w-6 object-contain shrink-0" />
             ResumeForge
           </Link>
           <Link to="/pricing" className="text-sm text-brand-600 font-medium">

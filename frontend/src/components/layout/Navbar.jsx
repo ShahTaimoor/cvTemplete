@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { FileText, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import MotionIcon from '../common/MotionIcon';
 
@@ -13,9 +13,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-slate-900">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <FileText size={20} />
-          </span>
+          <img src="/logo.png" alt="ResumeForge" className="h-9 w-9 object-contain shrink-0" />
           ResumeForge
         </Link>
         <nav className="flex items-center gap-2 sm:gap-6 text-sm font-medium">

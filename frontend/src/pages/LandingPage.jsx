@@ -1,16 +1,86 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
-import { FileText, Download, Palette, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { Shield, ArrowRight } from 'lucide-react';
 import Seal from '../components/common/Seal';
+import FileTextFanIcon from '../components/common/FileTextFanIcon';
+import PaletteDotCycleIcon from '../components/common/PaletteDotCycleIcon';
+import DownloadBounceIcon from '../components/common/DownloadBounceIcon';
+import ShieldCheckDrawIcon from '../components/common/ShieldCheckDrawIcon';
+import SparklesTwinkleIcon from '../components/common/SparklesTwinkleIcon';
+import { DURATION, EASE } from '../lib/motion';
 
 const features = [
-  { icon: FileText, title: '330+ templates', desc: 'US, UK, EU, Pakistan, Saudi, Gulf & 25+ country CV formats' },
-  { icon: Palette, title: 'Custom themes', desc: 'Brand colors and fonts on Pro and Premium' },
-  { icon: Download, title: 'PDF export', desc: 'Download a polished resume that matches your preview' },
-  { icon: Shield, title: 'ATS checker', desc: 'Optimize keywords before you apply' },
-  { icon: Sparkles, title: 'Auto-save', desc: 'Your work is saved as you type' },
+  { icon: FileTextFanIcon, title: '330+ templates', desc: 'US, UK, EU, Pakistan, Saudi, Gulf & 25+ country CV formats' },
+  { icon: PaletteDotCycleIcon, title: 'Custom themes', desc: 'Brand colors and fonts on Pro and Premium' },
+  { icon: DownloadBounceIcon, title: 'PDF export', desc: 'Download a polished resume that matches your preview' },
+  { icon: ShieldCheckDrawIcon, title: 'ATS checker', desc: 'Optimize keywords before you apply' },
+  { icon: SparklesTwinkleIcon, title: 'Auto-save', desc: 'Your work is saved as you type' },
 ];
+
+// Owns its own hover state locally — hooks can't live inline in the
+// features.map() below. `hovered` drives the icon's own hand-built
+// animation; the card's scroll-triggered entrance (via the `variants`
+// prop, orchestrated by the parent's whileInView) is completely
+// independent of this and untouched by it.
+function FeatureCard({ Icon, title, desc }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.div
+      variants={featureCard}
+      className="app-card p-6"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-4">
+        <Icon hovered={hovered} size={22} />
+      </span>
+      <h3 className="font-semibold text-graphite mb-1">{title}</h3>
+      <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
+    </motion.div>
+  );
+}
+
+// Same clipped hover-sweep technique as CreditCardShineIcon, applied to the
+// CTA button itself rather than an icon glyph: a soft light band sweeps
+// across on hover, layered on top of (not replacing) the button's existing
+// scale/boxShadow glow, which stays driven by Framer's own whileHover on
+// the wrapping motion.div below — this only adds the sweep, tracked via a
+// separate plain hover state on the Link itself.
+function CtaButton() {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.div
+      initial={{ boxShadow: '0 0 0 0 rgba(185,139,78,0)' }}
+      whileHover={{ scale: 1.06, boxShadow: '0 8px 30px 0 rgba(185,139,78,0.45)' }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 16 }}
+      className="rounded-lg"
+    >
+      <Link
+        to="/register"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="relative overflow-hidden inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
+      >
+        <motion.span
+          aria-hidden
+          // Travel is deliberately snug — just far enough that the band starts
+          // and ends fully clear of the button (its own width is 1/3 of the
+          // button's, so -100%/300% are exactly flush with each edge) rather
+          // than a wide margin on both sides. The wider version technically
+          // swept correctly but spent most of its distance off-screen, so the
+          // visible crossing over the button was too brief to actually read
+          // as a sweep rather than a flash.
+          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white/0 via-white/60 to-white/0"
+          animate={hovered ? { x: '300%' } : { x: '-100%' }}
+          transition={hovered ? { duration: DURATION.slow, ease: EASE } : { duration: 0 }}
+        />
+        Get started
+      </Link>
+    </motion.div>
+  );
+}
 
 /**
  * Landing-page-only motion language: bolder, more expressive than the rest
@@ -199,13 +269,7 @@ export default function LandingPage() {
           variants={featuresContainer}
         >
           {features.map(({ icon: Icon, title, desc }) => (
-            <motion.div key={title} variants={featureCard} className="app-card p-6">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-4">
-                <Icon size={22} />
-              </span>
-              <h3 className="font-semibold text-graphite mb-1">{title}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
-            </motion.div>
+            <FeatureCard key={title} Icon={Icon} title={title} desc={desc} />
           ))}
         </motion.div>
       </section>
@@ -227,20 +291,7 @@ export default function LandingPage() {
               <p className="text-brand-100 mt-1">Join free — no credit card required.</p>
             </div>
           </div>
-          <motion.div
-            initial={{ boxShadow: '0 0 0 0 rgba(185,139,78,0)' }}
-            whileHover={{ scale: 1.06, boxShadow: '0 8px 30px 0 rgba(185,139,78,0.45)' }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 16 }}
-            className="rounded-lg"
-          >
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
-            >
-              Get started
-            </Link>
-          </motion.div>
+          <CtaButton />
         </motion.div>
       </section>
     </div>
