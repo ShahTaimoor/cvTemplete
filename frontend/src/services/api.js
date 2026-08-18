@@ -55,6 +55,7 @@ export const resumeAPI = {
   trackDownload: (id, format) => api.post(`/resumes/${id}/track-download`, { format }),
   analytics: (id) => api.get(`/resumes/${id}/analytics`),
   regenerateThumbnail: (id) => api.post(`/resumes/${id}/thumbnail`),
+  dashboardInsight: () => api.get('/resumes/dashboard-insight'),
 };
 
 export const coverLetterAPI = {

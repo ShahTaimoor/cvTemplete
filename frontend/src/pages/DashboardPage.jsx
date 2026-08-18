@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Trash2, FileText, Copy, Mail, Crown, LayoutTemplate } from 'lucide-react';
+import { Plus, Trash2, FileText, Copy, Mail, Crown, LayoutTemplate, Eye, Clock, Download, TrendingUp } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI } from '../services/api';
@@ -10,8 +10,79 @@ import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
-import { staggerContainer, staggerItem } from '../lib/motion';
+import { staggerContainer, staggerItem, pageFade } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
+
+// One real, data-backed nudge for Pro/Premium accounts (see GET
+// /resumes/dashboard-insight) — never a generic filler. Renders nothing at
+// all for `type: 'none'`, not an empty placeholder box. Burgundy is the
+// brand's reserved Pro/Premium-indicator accent (see index.css), matching
+// how it's already used for the Premium plan card on Pricing.
+//
+// 'activity' shows every resume with real views/downloads this week (not
+// just the single busiest one) as a row of compact chips — flex-wrap so a
+// handful of active resumes wraps to multiple lines on narrow screens
+// instead of overflowing or needing a scroll affordance. 'stale' is a
+// simpler, single-line fallback for when nothing happened this week at
+// all — a different, gentler kind of nudge, so it keeps its own layout
+// rather than being forced into the chip treatment.
+function InsightBanner({ insight }) {
+  if (!insight || insight.type === 'none') return null;
+
+  if (insight.type === 'activity') {
+    return (
+      <motion.div
+        initial={pageFade.initial}
+        animate={pageFade.animate}
+        transition={pageFade.transition}
+        className="mb-8 rounded-xl border border-burgundy/20 bg-burgundy/5 px-4 py-3.5"
+      >
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-burgundy/10 text-burgundy">
+            <TrendingUp size={15} />
+          </span>
+          <p className="text-xs font-semibold uppercase tracking-wide text-burgundy">This week's activity</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {insight.items.map((item) => (
+            <div
+              key={item.resumeId}
+              className="flex items-center gap-2.5 rounded-lg border border-burgundy/15 bg-white px-3 py-1.5 max-w-full"
+            >
+              <span className="text-sm font-medium text-graphite truncate max-w-[160px]">{item.resumeTitle}</span>
+              {item.views > 0 && (
+                <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
+                  <Eye size={13} /> {item.views}
+                </span>
+              )}
+              {item.downloads > 0 && (
+                <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
+                  <Download size={13} /> {item.downloads}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={pageFade.initial}
+      animate={pageFade.animate}
+      transition={pageFade.transition}
+      className="mb-8 flex items-center gap-3 rounded-xl border border-burgundy/20 bg-burgundy/5 px-4 py-3.5"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-burgundy/10 text-burgundy">
+        <Clock size={18} />
+      </span>
+      <p className="text-sm font-medium text-graphite">
+        It's been {insight.daysSinceUpdate} days since you updated {insight.resumeTitle}
+      </p>
+    </motion.div>
+  );
+}
 
 // Server-generated screenshot of the resume's actual design (see
 // backend/src/services/thumbnailService.js), regenerated whenever the
@@ -78,6 +149,7 @@ export default function DashboardPage() {
   const [showNew, setShowNew] = useState(false);
   const [selectedSlug, setSelectedSlug] = useState('classic-blue');
   const [coverLetters, setCoverLetters] = useState([]);
+  const [insight, setInsight] = useState(null);
   const plan = user?.subscription?.plan || 'free';
 
   // Thumbnail generation (on Builder-exit, or the self-healing retry below)
@@ -214,6 +286,9 @@ export default function DashboardPage() {
     if (plan === 'premium') {
       coverLetterAPI.list().then((r) => setCoverLetters(r.data)).catch(() => {});
     }
+    if (['pro', 'premium'].includes(plan)) {
+      resumeAPI.dashboardInsight().then((r) => setInsight(r.data)).catch(() => {});
+    }
   }, [dispatch, plan]);
 
   const createResume = async () => {
@@ -303,6 +378,8 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        <InsightBanner insight={insight} />
 
         <AnimatePresence>
           {showNew && (

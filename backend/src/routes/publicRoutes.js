@@ -6,6 +6,19 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
+// Defense-in-depth against duplicate view-logging, independent of the
+// client-side mount-guard in SharePage.jsx (the actual fix for the known
+// StrictMode double-fire — see that file). This exists for any *other*
+// future cause of two near-identical requests landing back-to-back (a
+// network retry, a double-click, etc.): if the same resume is fetched again
+// within VIEW_DEDUPE_MS, the repeat isn't logged as a second view.
+// Per-process/in-memory and short-lived by design — it isn't meant to
+// dedupe genuinely distinct visits (e.g. two different people opening the
+// same link seconds apart), only an accidental immediate repeat of the
+// exact same request.
+const recentResumeViews = new Map(); // resumeId -> last-logged timestamp
+const VIEW_DEDUPE_MS = 2000;
+
 router.get('/share/:token', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({
     shareToken: req.params.token,
@@ -18,9 +31,15 @@ router.get('/share/:token', asyncHandler(async (req, res) => {
   res.json({ resume, template });
 
   // Fire-and-forget: never let analytics logging affect the public view response.
-  AnalyticsEvent.create({ resume: resume._id, type: 'view' }).catch((err) =>
-    console.error('Analytics view tracking failed:', err)
-  );
+  const resumeId = String(resume._id);
+  const now = Date.now();
+  const lastLoggedAt = recentResumeViews.get(resumeId);
+  if (!lastLoggedAt || now - lastLoggedAt > VIEW_DEDUPE_MS) {
+    recentResumeViews.set(resumeId, now);
+    AnalyticsEvent.create({ resume: resume._id, type: 'view' }).catch((err) =>
+      console.error('Analytics view tracking failed:', err)
+    );
+  }
 }));
 
 export default router;

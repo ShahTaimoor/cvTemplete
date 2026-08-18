@@ -48,6 +48,81 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(resumes);
 }));
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const VIEWS_WINDOW_DAYS = 7;
+const STALE_THRESHOLD_DAYS = 30;
+const MAX_ACTIVITY_ITEMS = 4;
+
+// Registered ahead of GET /:id — as a literal path with no params, it would
+// otherwise be swallowed by that route (Express would match "dashboard-
+// insight" as an :id value).
+//
+// One real, data-backed insight per Dashboard visit, gated the same as the
+// existing per-resume analytics endpoint below. Pro accounts can never
+// generate view events (Share links are Premium-only), so their downloads
+// still surface here even though views never will — no special-casing
+// needed, the aggregate just naturally has zero view events for them.
+router.get('/dashboard-insight', asyncHandler(async (req, res) => {
+  const plan = req.user.subscription?.plan || 'free';
+  if (!['pro', 'premium'].includes(plan)) {
+    return res.status(403).json({ message: 'Dashboard insights require Pro plan or higher' });
+  }
+
+  const resumes = await Resume.find({ user: req.user._id }).select('_id title updatedAt');
+  if (!resumes.length) return res.json({ type: 'none' });
+
+  // Every resume with real activity this week, not just the single busiest
+  // one — a resume that isn't the top performer can still have genuine
+  // views/downloads worth surfacing, and hiding those undersells real
+  // engagement the user should see.
+  const since = new Date(Date.now() - VIEWS_WINDOW_DAYS * DAY_MS);
+  const activity = await AnalyticsEvent.aggregate([
+    { $match: { resume: { $in: resumes.map((r) => r._id) }, type: { $in: ['view', 'download'] }, createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: '$resume',
+        views: { $sum: { $cond: [{ $eq: ['$type', 'view'] }, 1, 0] } },
+        downloads: { $sum: { $cond: [{ $eq: ['$type', 'download'] }, 1, 0] } },
+      },
+    },
+    { $addFields: { total: { $add: ['$views', '$downloads'] } } },
+    { $sort: { total: -1 } },
+    { $limit: MAX_ACTIVITY_ITEMS },
+  ]);
+
+  if (activity.length) {
+    const items = activity.map((a) => {
+      const resume = resumes.find((r) => r._id.equals(a._id));
+      return {
+        resumeId: a._id,
+        resumeTitle: resume?.title || 'Untitled Resume',
+        views: a.views,
+        downloads: a.downloads,
+      };
+    });
+    return res.json({ type: 'activity', items });
+  }
+
+  // updatedAt also gets bumped by the background thumbnail-regeneration
+  // write (see thumbnailService.js/resumeRoutes.js's own POST /:id/thumbnail
+  // handler), not just genuine content edits — a resume whose thumbnail was
+  // silently regenerated recently will look "freshly updated" here even if
+  // its actual content is old. Acceptable for a soft, best-effort nudge like
+  // this; a true "content last edited" signal would need its own field.
+  const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_DAYS * DAY_MS);
+  const staleCandidates = resumes
+    .filter((r) => r.updatedAt <= staleThreshold)
+    .sort((a, b) => a.updatedAt - b.updatedAt);
+
+  if (staleCandidates.length) {
+    const stalest = staleCandidates[0];
+    const daysSinceUpdate = Math.floor((Date.now() - stalest.updatedAt.getTime()) / DAY_MS);
+    return res.json({ type: 'stale', resumeTitle: stalest.title, daysSinceUpdate });
+  }
+
+  res.json({ type: 'none' });
+}));
+
 router.post('/', asyncHandler(async (req, res) => {
   const slug = req.body.templateSlug || 'classic-blue';
   const template = await Template.findOne({ slug });
