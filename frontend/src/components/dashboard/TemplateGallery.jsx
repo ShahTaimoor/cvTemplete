@@ -12,25 +12,11 @@ import { withTemplateSlug } from '../../data/sampleResume';
 import TemplateCard, { TemplateCardSkeleton } from '../templates/TemplateCard';
 import ResumePreview from '../resume/ResumePreview';
 import { staggerContainer, staggerItem } from '../../lib/motion';
+import { getPageNumbers } from '../../utils/pagination';
 
 const SKELETON_CARD_COUNT = 8;
 
 const PAGE_SIZE = 24;
-
-/** Windowed page numbers with ellipses, e.g. [1, '…', 4, 5, 6, '…', 15] */
-function getPageNumbers(current, total) {
-  const delta = 1;
-  const range = [];
-  for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
-    range.push(i);
-  }
-  const pages = [1];
-  if (range[0] > 2) pages.push('…');
-  pages.push(...range);
-  if (range[range.length - 1] < total - 1) pages.push('…');
-  if (total > 1) pages.push(total);
-  return pages;
-}
 
 export default function TemplateGallery({
   templates,

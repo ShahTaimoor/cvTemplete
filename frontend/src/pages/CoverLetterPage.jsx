@@ -157,7 +157,7 @@ export default function CoverLetterPage() {
     if (!ok) return;
     await coverLetterAPI.remove(id);
     toast.success('Cover letter deleted');
-    navigate('/dashboard');
+    navigate('/cover-letters');
   };
 
   if (plan !== 'premium') {
@@ -179,9 +179,9 @@ export default function CoverLetterPage() {
       <DashboardLayout>
         <div className="max-w-lg mx-auto py-16 text-center px-4">
           <h1 className="text-xl font-bold text-slate-900 mb-2">Couldn't load this cover letter</h1>
-          <p className="text-slate-600 mb-4">It may have been deleted, or something went wrong loading it. Try again from your dashboard.</p>
-          <Link to="/dashboard" className="text-brand-600 font-semibold hover:underline">
-            Back to Dashboard
+          <p className="text-slate-600 mb-4">It may have been deleted, or something went wrong loading it. Try again from your cover letters list.</p>
+          <Link to="/cover-letters" className="text-brand-600 font-semibold hover:underline">
+            Back to My Cover Letters
           </Link>
         </div>
       </DashboardLayout>

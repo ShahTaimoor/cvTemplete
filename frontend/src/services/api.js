@@ -64,6 +64,7 @@ export const coverLetterAPI = {
   create: (data) => api.post('/cover-letters', data),
   update: (id, data) => api.put(`/cover-letters/${id}`, data),
   remove: (id) => api.delete(`/cover-letters/${id}`),
+  duplicate: (id, data) => api.post(`/cover-letters/${id}/duplicate`, data),
   docx: (id) => api.post(`/cover-letters/${id}/docx`, {}, { responseType: 'blob' }),
   pdf: (id) => api.post(`/cover-letters/${id}/pdf`, {}, { responseType: 'blob' }),
 };

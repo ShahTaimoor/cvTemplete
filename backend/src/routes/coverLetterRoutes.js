@@ -23,6 +23,21 @@ const safeAttachmentFilename = (title, fallback = 'cover-letter') =>
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '') || fallback;
 
+// Mirrors resumeRoutes.js's resumeSnapshot exactly, minus the two fields
+// Cover Letter doesn't have (isPublic/shareToken — no sharing feature
+// here). `resume` (the linked-resume reference) is deliberately kept, not
+// stripped — a duplicate is a copy of the whole document, so it stays
+// "for" the same resume as the original until the user changes it.
+const coverLetterSnapshot = (doc) => {
+  const o = doc.toObject ? doc.toObject() : { ...doc };
+  delete o._id;
+  delete o.user;
+  delete o.createdAt;
+  delete o.updatedAt;
+  delete o.__v;
+  return o;
+};
+
 const requirePremium = (req, res, next) => {
   if (req.user.subscription?.plan !== 'premium') {
     return res.status(403).json({ message: 'Cover letters require Premium plan' });
@@ -101,6 +116,18 @@ router.put('/:id', asyncHandler(async (req, res) => {
 router.delete('/:id', asyncHandler(async (req, res) => {
   await CoverLetter.findOneAndDelete({ _id: req.params.id, user: req.user._id });
   res.json({ message: 'Deleted' });
+}));
+
+router.post('/:id/duplicate', asyncHandler(async (req, res) => {
+  const source = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!source) return res.status(404).json({ message: 'Not found' });
+  const snap = coverLetterSnapshot(source);
+  const copy = await CoverLetter.create({
+    ...snap,
+    user: req.user._id,
+    title: req.body.title || `${source.title} (Copy)`,
+  });
+  res.status(201).json(copy);
 }));
 
 router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {

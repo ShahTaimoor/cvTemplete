@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PenLine, Mail } from 'lucide-react';
+import { FileText, PenLine, Mail } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import { overlayFade, drawerPanel } from '../../lib/motion';
 import HamburgerIcon from '../common/HamburgerIcon';
@@ -11,8 +11,25 @@ import CreditCardShineIcon from '../common/CreditCardShineIcon';
 import CrownSparkleIcon from '../common/CrownSparkleIcon';
 import LogOutSlideIcon from '../common/LogOutSlideIcon';
 
+// NavItem below calls every nav icon as `<Icon hovered={...} size={18} />` —
+// the hand-crafted icons (DashboardGridIcon, CreditCardShineIcon) use
+// `hovered` for their own Framer Motion hover animation. These two new nav
+// slots deliberately use plain, static lucide-react icons instead (per this
+// task's own instruction, not a hand-crafted animation), so they just
+// absorb and drop `hovered` rather than forwarding it onto the underlying
+// <svg>, where it would otherwise leak through lucide's own prop-spread as
+// an invalid DOM attribute.
+function FileTextNavIcon({ size }) {
+  return <FileText size={size} />;
+}
+function MailNavIcon({ size }) {
+  return <Mail size={size} />;
+}
+
 const NAV = [
-  { to: '/dashboard', label: 'My Resumes', icon: DashboardGridIcon },
+  { to: '/dashboard', label: 'My Dashboard', icon: DashboardGridIcon },
+  { to: '/resumes', label: 'My Resumes', icon: FileTextNavIcon },
+  { to: '/cover-letters', label: 'My Cover Letters', icon: MailNavIcon },
   { to: '/pricing', label: 'Plans & Pricing', icon: CreditCardShineIcon },
 ];
 
@@ -106,7 +123,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             Resume Editor
           </span>
         )}
-        {location.pathname.startsWith('/cover-letter') && (
+        {location.pathname.startsWith('/cover-letter/') && (
           <span className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium bg-brand-50 text-brand-700">
             <Mail size={18} />
             Cover Letter

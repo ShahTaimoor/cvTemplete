@@ -12,6 +12,8 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import ResumesPage from './pages/ResumesPage';
+import CoverLettersPage from './pages/CoverLettersPage';
 import BuilderPage from './pages/BuilderPage';
 import PricingPage from './pages/PricingPage';
 import SharePage from './pages/SharePage';
@@ -39,6 +41,8 @@ function AppRoutes() {
   const usesAppShell =
     user &&
     (location.pathname === '/dashboard' ||
+      location.pathname === '/resumes' ||
+      location.pathname === '/cover-letters' ||
       location.pathname === '/pricing' ||
       location.pathname.startsWith('/builder') ||
       location.pathname.startsWith('/cover-letter'));
@@ -73,6 +77,22 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <PageTransition><DashboardPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/resumes"
+            element={
+              <ProtectedRoute>
+                <PageTransition><ResumesPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/cover-letters"
+            element={
+              <ProtectedRoute>
+                <PageTransition><CoverLettersPage /></PageTransition>
               </ProtectedRoute>
             }
           />
