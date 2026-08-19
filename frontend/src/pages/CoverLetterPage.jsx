@@ -1,17 +1,45 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Download, Save } from 'lucide-react';
+import { AlertCircle, CheckCircle, Download, Save, Trash2 } from 'lucide-react';
 import { coverLetterAPI, downloadBlob } from '../services/api';
 import CoverLetterPreview from '../components/coverLetter/CoverLetterPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import MotionIcon from '../components/common/MotionIcon';
+import { useConfirm } from '../hooks/useConfirm';
+import { useToast } from '../hooks/useToast';
+
+// Human-readable labels for the flat field keys below — an explicit map
+// (not a generic camelCase-splitter) since it's a small fixed set of fields
+// and this guarantees exactly the right wording for every one of them.
+const PERSONAL_LABELS = {
+  fullName: 'Full Name',
+  email: 'Email',
+  phone: 'Phone',
+  location: 'Location',
+};
+
+const LETTER_LABELS = {
+  recipientName: 'Recipient Name',
+  recipientTitle: 'Recipient Title',
+  companyName: 'Company Name',
+  companyAddress: 'Company Address',
+  date: 'Date',
+  salutation: 'Salutation',
+  closing: 'Closing',
+};
 
 export default function CoverLetterPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const confirmDialog = useConfirm();
+  const toast = useToast();
   const { user } = useSelector((s) => s.auth);
   const plan = user?.subscription?.plan || 'free';
   const [letter, setLetter] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
 
   useEffect(() => {
     if (plan !== 'premium') return;
@@ -26,11 +54,20 @@ export default function CoverLetterPage() {
       personal: { ...prev.personal, [key]: value },
     }));
 
+  // Matches useAutoSave's error handling exactly (frontend/src/hooks/useAutoSave.js):
+  // surface the failure via toast.error, and keep a visible failed-state
+  // indicator in the header rather than letting the button silently revert
+  // as if nothing went wrong.
   const save = async () => {
     setSaving(true);
     try {
       const { data } = await coverLetterAPI.update(id, letter);
       setLetter(data);
+      setLastSaved(new Date().toISOString());
+      setSaveError(false);
+    } catch (err) {
+      setSaveError(true);
+      toast.error(err.response?.data?.message || 'Failed to save changes — please check your connection.');
     } finally {
       setSaving(false);
     }
@@ -39,6 +76,19 @@ export default function CoverLetterPage() {
   const exportDocx = async () => {
     const { data } = await coverLetterAPI.docx(id);
     downloadBlob(data, `${letter.title || 'cover-letter'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  };
+
+  const deleteLetter = async () => {
+    const ok = await confirmDialog({
+      title: 'Delete this cover letter?',
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    await coverLetterAPI.remove(id);
+    toast.success('Cover letter deleted');
+    navigate('/dashboard');
   };
 
   if (plan !== 'premium') {
@@ -67,20 +117,47 @@ export default function CoverLetterPage() {
     <DashboardLayout fullHeight>
       <div className="h-full flex flex-col lg:flex-row">
         <div className="lg:w-1/2 p-4 overflow-y-auto border-r border-slate-200 bg-white space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-2">
             <input
               value={letter.title}
               onChange={(e) => update('title', e.target.value)}
-              className="font-semibold text-slate-900 bg-transparent border-b border-slate-300 flex-1 mr-2 pb-1"
+              className="font-semibold text-slate-900 bg-transparent border-b border-slate-300 flex-1 pb-1"
             />
-            <button type="button" onClick={save} disabled={saving} className="app-btn-primary !py-1.5 gap-1 text-sm">
-              <Save size={14} /> {saving ? 'Saving...' : 'Save'}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs hidden sm:flex items-center gap-1">
+                {saving ? (
+                  <span className="text-slate-500">Saving...</span>
+                ) : saveError ? (
+                  <span className="text-red-600 flex items-center gap-1">
+                    <AlertCircle size={12} />
+                    Save failed
+                  </span>
+                ) : (
+                  lastSaved && (
+                    <span className="text-slate-500 flex items-center gap-1">
+                      <CheckCircle size={12} className="text-emerald-500" />
+                      Saved {new Date(lastSaved).toLocaleTimeString()}
+                    </span>
+                  )
+                )}
+              </span>
+              <button type="button" onClick={save} disabled={saving} className="app-btn-primary !py-1.5 gap-1 text-sm">
+                <Save size={14} /> {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={deleteLetter}
+                title="Delete"
+                className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
+              >
+                <MotionIcon><Trash2 size={14} /></MotionIcon>
+              </button>
+            </div>
           </div>
 
           {['fullName', 'email', 'phone', 'location'].map((f) => (
             <div key={f}>
-              <label className="app-label capitalize">{f}</label>
+              <label className="app-label">{PERSONAL_LABELS[f]}</label>
               <input
                 value={letter.personal?.[f] || ''}
                 onChange={(e) => updatePersonal(f, e.target.value)}
@@ -91,7 +168,7 @@ export default function CoverLetterPage() {
 
           {['recipientName', 'recipientTitle', 'companyName', 'companyAddress', 'date', 'salutation', 'closing'].map((f) => (
             <div key={f}>
-              <label className="app-label">{f}</label>
+              <label className="app-label">{LETTER_LABELS[f]}</label>
               <input
                 value={letter[f] || ''}
                 onChange={(e) => update(f, e.target.value)}

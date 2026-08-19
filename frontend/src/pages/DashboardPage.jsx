@@ -387,6 +387,19 @@ export default function DashboardPage() {
     toast.success('Resume deleted');
   };
 
+  const deleteCoverLetter = async (letterId) => {
+    const ok = await confirmDialog({
+      title: 'Delete this cover letter?',
+      message: 'This action cannot be undone.',
+      confirmLabel: 'Delete',
+      destructive: true,
+    });
+    if (!ok) return;
+    await coverLetterAPI.remove(letterId);
+    setCoverLetters((prev) => prev.filter((c) => c._id !== letterId));
+    toast.success('Cover letter deleted');
+  };
+
   const newCoverLetter = async (resumeId) => {
     try {
       const { data } = await coverLetterAPI.create({ resumeId });
@@ -481,13 +494,25 @@ export default function DashboardPage() {
             </h2>
             <div className="flex flex-wrap gap-2">
               {coverLetters.map((c) => (
-                <Link
+                <div
                   key={c._id}
-                  to={`/cover-letter/${c._id}`}
-                  className="px-4 py-2 rounded-lg bg-white border border-slate-200 text-sm font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                  className="flex items-center gap-1 rounded-lg bg-white border border-slate-200 pl-4 pr-1.5 py-1.5 hover:border-brand-300"
                 >
-                  {c.title}
-                </Link>
+                  <Link
+                    to={`/cover-letter/${c._id}`}
+                    className="text-sm font-medium text-slate-700 hover:text-brand-700"
+                  >
+                    {c.title}
+                  </Link>
+                  <button
+                    type="button"
+                    title="Delete"
+                    onClick={() => deleteCoverLetter(c._id)}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <MotionIcon><Trash2 size={14} /></MotionIcon>
+                  </button>
+                </div>
               ))}
             </div>
           </div>
