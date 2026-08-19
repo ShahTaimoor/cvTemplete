@@ -65,6 +65,7 @@ export const coverLetterAPI = {
   update: (id, data) => api.put(`/cover-letters/${id}`, data),
   remove: (id) => api.delete(`/cover-letters/${id}`),
   docx: (id) => api.post(`/cover-letters/${id}/docx`, {}, { responseType: 'blob' }),
+  pdf: (id) => api.post(`/cover-letters/${id}/pdf`, {}, { responseType: 'blob' }),
 };
 
 export const subscriptionAPI = {

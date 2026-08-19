@@ -4,11 +4,24 @@ import Resume from '../models/Resume.js';
 import { protect } from '../middleware/auth.js';
 import { getSampleCoverLetterPayload } from '../utils/sampleResumeData.js';
 import { buildCoverLetterDocx } from '../services/docxService.js';
+import { generateCoverLetterPdf } from '../services/coverLetterPdfService.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
 router.use(protect);
+
+// Content-Disposition is a raw HTTP header, so its value has to be plain
+// ASCII — Node's http module throws ERR_INVALID_CHAR on anything outside
+// that range (e.g. the default sample title's em dash, "Cover Letter —
+// Software Engineer", crashed the PDF route entirely before this existed).
+// Strips whatever doesn't fit rather than percent/RFC-5987-encoding it,
+// since a slightly simplified filename is a fine trade for never 500ing.
+const safeAttachmentFilename = (title, fallback = 'cover-letter') =>
+  (title || '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '') || fallback;
 
 const requirePremium = (req, res, next) => {
   if (req.user.subscription?.plan !== 'premium') {
@@ -96,6 +109,15 @@ router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   const buffer = await buildCoverLetterDocx(letter);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="cover-letter.docx"`);
+  res.send(buffer);
+}));
+
+router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id }).select('_id title');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  const buffer = await generateCoverLetterPdf(letter._id, req.user._id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeAttachmentFilename(letter.title)}.pdf"`);
   res.send(buffer);
 }));
 

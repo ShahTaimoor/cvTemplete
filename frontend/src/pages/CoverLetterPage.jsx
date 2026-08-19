@@ -82,6 +82,7 @@ export default function CoverLetterPage() {
   const [saveError, setSaveError] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [mobileTab, setMobileTab] = useState('edit');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (plan !== 'premium') return;
@@ -127,6 +128,22 @@ export default function CoverLetterPage() {
       downloadBlob(data, `${letter.title || 'cover-letter'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     } catch {
       toast.error('DOCX export failed');
+    }
+  };
+
+  // Matches BuilderPage.jsx's downloadPdf exactly (Resume's PDF export) —
+  // the `exporting` state/disabled-button treatment specifically, since
+  // real Puppeteer-rendered PDF generation takes a few seconds, unlike the
+  // near-instant DOCX export above.
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const { data } = await coverLetterAPI.pdf(id);
+      downloadBlob(data, `${letter.title || 'cover-letter'}.pdf`, 'application/pdf');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'PDF export failed');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -269,9 +286,19 @@ export default function CoverLetterPage() {
             />
           </div>
 
-          <button type="button" onClick={exportDocx} className="app-btn-secondary gap-2 text-sm">
-            <Download size={16} /> Export DOCX
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={exportPdf}
+              disabled={exporting}
+              className="app-btn-primary gap-2 text-sm disabled:opacity-50"
+            >
+              <Download size={16} /> {exporting ? 'Generating...' : 'Export PDF'}
+            </button>
+            <button type="button" onClick={exportDocx} className="app-btn-secondary gap-2 text-sm">
+              <Download size={16} /> Export DOCX
+            </button>
+          </div>
         </div>
 
         <div
