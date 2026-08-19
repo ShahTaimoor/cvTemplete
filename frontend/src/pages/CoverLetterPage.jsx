@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { AlertCircle, CheckCircle, Download, Save, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Download, Trash2 } from 'lucide-react';
 import { coverLetterAPI, downloadBlob } from '../services/api';
 import CoverLetterPreview from '../components/coverLetter/CoverLetterPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MotionIcon from '../components/common/MotionIcon';
+import Skeleton from '../components/common/Skeleton';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
+import { buildCoverLetterSavePayload, useCoverLetterAutoSave } from '../hooks/useCoverLetterAutoSave';
 
 // Human-readable labels for the flat field keys below — an explicit map
 // (not a generic camelCase-splitter) since it's a small fixed set of fields
@@ -28,6 +30,44 @@ const LETTER_LABELS = {
   salutation: 'Salutation',
   closing: 'Closing',
 };
+
+// Shape-matched placeholder for the initial fetch below (`if (!letter)`) —
+// mirrors the real two-column layout (title + status/actions row, the
+// personal + letter field pairs, the body textarea, the export button, and
+// the preview panel) instead of the previous plain "Loading cover
+// letter..." text. Same pattern as BuilderSkeleton in BuilderPage.jsx.
+function CoverLetterSkeleton() {
+  return (
+    <div className="h-full flex flex-col lg:flex-row">
+      <div className="lg:w-1/2 p-4 border-r border-slate-200 bg-white space-y-4">
+        <div className="flex justify-between items-center gap-2">
+          <Skeleton shape="rounded" className="flex-1" height={28} />
+          <Skeleton shape="rounded" width={34} height={30} />
+        </div>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={`personal-${i}`} className="space-y-1.5">
+            <Skeleton shape="rounded" width="30%" height={12} />
+            <Skeleton shape="rounded" className="w-full" height={38} />
+          </div>
+        ))}
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={`letter-${i}`} className="space-y-1.5">
+            <Skeleton shape="rounded" width="35%" height={12} />
+            <Skeleton shape="rounded" className="w-full" height={38} />
+          </div>
+        ))}
+        <div className="space-y-1.5">
+          <Skeleton shape="rounded" width="25%" height={12} />
+          <Skeleton shape="rounded" className="w-full" height={140} />
+        </div>
+        <Skeleton shape="rounded" width={140} height={38} />
+      </div>
+      <div className="lg:w-1/2 p-4 bg-slate-100 flex items-center justify-center">
+        <Skeleton shape="rounded" className="w-full max-w-md aspect-[210/297]" />
+      </div>
+    </div>
+  );
+}
 
 export default function CoverLetterPage() {
   const { id } = useParams();
@@ -57,11 +97,14 @@ export default function CoverLetterPage() {
   // Matches useAutoSave's error handling exactly (frontend/src/hooks/useAutoSave.js):
   // surface the failure via toast.error, and keep a visible failed-state
   // indicator in the header rather than letting the button silently revert
-  // as if nothing went wrong.
+  // as if nothing went wrong. Called both by the debounced autosave below
+  // and (indirectly, via the same status indicator) at natural moments —
+  // matching Resume Builder, which has no manual "Save" button at all and
+  // relies entirely on useAutoSave.
   const save = async () => {
     setSaving(true);
     try {
-      const { data } = await coverLetterAPI.update(id, letter);
+      const { data } = await coverLetterAPI.update(id, buildCoverLetterSavePayload(letter));
       setLetter(data);
       setLastSaved(new Date().toISOString());
       setSaveError(false);
@@ -72,6 +115,8 @@ export default function CoverLetterPage() {
       setSaving(false);
     }
   };
+
+  useCoverLetterAutoSave(letter, save);
 
   const exportDocx = async () => {
     const { data } = await coverLetterAPI.docx(id);
@@ -107,8 +152,8 @@ export default function CoverLetterPage() {
 
   if (!letter) {
     return (
-      <DashboardLayout>
-        <div className="text-center py-20 text-slate-500">Loading cover letter...</div>
+      <DashboardLayout fullHeight>
+        <CoverLetterSkeleton />
       </DashboardLayout>
     );
   }
@@ -141,9 +186,6 @@ export default function CoverLetterPage() {
                   )
                 )}
               </span>
-              <button type="button" onClick={save} disabled={saving} className="app-btn-primary !py-1.5 gap-1 text-sm">
-                <Save size={14} /> {saving ? 'Saving...' : 'Save'}
-              </button>
               <button
                 type="button"
                 onClick={deleteLetter}
