@@ -24,11 +24,11 @@ const safeAttachmentFilename = (title, fallback = 'cover-letter') =>
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '') || fallback;
 
-// Mirrors resumeRoutes.js's resumeSnapshot exactly, minus the two fields
-// Cover Letter doesn't have (isPublic/shareToken — no sharing feature
-// here). `resume` (the linked-resume reference) is deliberately kept, not
-// stripped — a duplicate is a copy of the whole document, so it stays
-// "for" the same resume as the original until the user changes it.
+// Mirrors resumeRoutes.js's resumeSnapshot exactly, including stripping
+// shareToken/isPublic so a duplicate never inherits the original's public
+// sharing state. `resume` (the linked-resume reference) is deliberately
+// kept, not stripped — a duplicate is a copy of the whole document, so it
+// stays "for" the same resume as the original until the user changes it.
 const coverLetterSnapshot = (doc) => {
   const o = doc.toObject ? doc.toObject() : { ...doc };
   delete o._id;
@@ -36,6 +36,8 @@ const coverLetterSnapshot = (doc) => {
   delete o.createdAt;
   delete o.updatedAt;
   delete o.__v;
+  delete o.shareToken;
+  o.isPublic = false;
   return o;
 };
 
@@ -128,6 +130,8 @@ router.post('/:id/duplicate', asyncHandler(async (req, res) => {
     ...snap,
     user: req.user._id,
     title: req.body.title || `${source.title} (Copy)`,
+    isPublic: false,
+    shareToken: undefined,
   });
   res.status(201).json(copy);
 }));
@@ -163,6 +167,18 @@ router.post('/:id/versions/:versionId/restore', asyncHandler(async (req, res) =>
   Object.assign(letter, version.snapshot);
   await letter.save();
   res.json(letter);
+}));
+
+// Mirrors resumeRoutes.js's POST /:id/share exactly — no separate plan
+// check needed here (unlike Resume's, which gates Premium inline) since
+// requirePremium above already applies to every route in this file.
+router.post('/:id/share', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  letter.isPublic = true;
+  await letter.save();
+  const base = process.env.CLIENT_URL || 'http://localhost:5173';
+  res.json({ shareUrl: `${base}/share/cover-letter/${letter.shareToken}` });
 }));
 
 router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {

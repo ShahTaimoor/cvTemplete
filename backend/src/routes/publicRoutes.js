@@ -1,5 +1,6 @@
 import express from 'express';
 import Resume from '../models/Resume.js';
+import CoverLetter from '../models/CoverLetter.js';
 import Template from '../models/Template.js';
 import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -40,6 +41,23 @@ router.get('/share/:token', asyncHandler(async (req, res) => {
       console.error('Analytics view tracking failed:', err)
     );
   }
+}));
+
+// Deliberately a distinct path (not /share/:token) rather than sharing
+// Resume's route — Resume and CoverLetter each enforce shareToken
+// uniqueness independently (separate collections), so a single shared path
+// could ambiguously match either model's token. No analytics logging here
+// yet: this is plumbing only, view-tracking is a deliberate follow-up once
+// real share links exist to generate data from.
+router.get('/share/cover-letter/:token', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({
+    shareToken: req.params.token,
+    isPublic: true,
+  }).select('-user');
+  if (!letter) {
+    return res.status(404).json({ message: 'Cover letter not found or not shared' });
+  }
+  res.json({ letter });
 }));
 
 export default router;

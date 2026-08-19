@@ -70,6 +70,7 @@ export const coverLetterAPI = {
   restoreVersion: (id, versionId) => api.post(`/cover-letters/${id}/versions/${versionId}/restore`),
   docx: (id) => api.post(`/cover-letters/${id}/docx`, {}, { responseType: 'blob' }),
   pdf: (id) => api.post(`/cover-letters/${id}/pdf`, {}, { responseType: 'blob' }),
+  share: (id) => api.post(`/cover-letters/${id}/share`),
 };
 
 export const subscriptionAPI = {
@@ -90,6 +91,7 @@ export const uploadAPI = {
 
 export const publicAPI = {
   share: (token) => api.get(`/public/share/${token}`),
+  shareCoverLetter: (token) => api.get(`/public/share/cover-letter/${token}`),
 };
 
 export const downloadBlob = (data, filename, mime) => {

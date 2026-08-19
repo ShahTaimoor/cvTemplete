@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { AlertCircle, CheckCircle, Download, History, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Download, History, Share2, Trash2 } from 'lucide-react';
 import { coverLetterAPI, downloadBlob } from '../services/api';
 import CoverLetterPreview from '../components/coverLetter/CoverLetterPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -180,6 +180,17 @@ export default function CoverLetterPage() {
     toast.success('Version restored');
   };
 
+  // Matches BuilderPage.jsx's shareResume exactly (Resume's Share flow).
+  const shareCoverLetter = async () => {
+    try {
+      const { data } = await coverLetterAPI.share(id);
+      navigator.clipboard.writeText(data.shareUrl);
+      toast.success('Share link copied!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Share failed');
+    }
+  };
+
   const deleteLetter = async () => {
     const ok = await confirmDialog({
       title: 'Delete this cover letter?',
@@ -276,6 +287,14 @@ export default function CoverLetterPage() {
                   )
                 )}
               </span>
+              <button
+                type="button"
+                onClick={shareCoverLetter}
+                title="Share"
+                className="app-btn-secondary !p-2"
+              >
+                <MotionIcon><Share2 size={14} /></MotionIcon>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowVersions(!showVersions)}
