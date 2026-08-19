@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { AlertCircle, CheckCircle, Download, Trash2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Download, History, Trash2 } from 'lucide-react';
 import { coverLetterAPI, downloadBlob } from '../services/api';
 import CoverLetterPreview from '../components/coverLetter/CoverLetterPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -83,10 +83,13 @@ export default function CoverLetterPage() {
   const [lastSaved, setLastSaved] = useState(null);
   const [mobileTab, setMobileTab] = useState('edit');
   const [exporting, setExporting] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
 
   useEffect(() => {
     if (plan !== 'premium') return;
     coverLetterAPI.get(id).then((r) => setLetter(r.data)).catch(() => setLoadError(true));
+    coverLetterAPI.versions(id).then((r) => setVersions(r.data)).catch(() => {});
   }, [id, plan]);
 
   const update = (key, value) => setLetter((prev) => ({ ...prev, [key]: value }));
@@ -145,6 +148,36 @@ export default function CoverLetterPage() {
     } finally {
       setExporting(false);
     }
+  };
+
+  // Matches BuilderPage.jsx's saveVersion/restoreVersion exactly (Resume's
+  // version history), including the ConfirmDialog inputMode naming prompt
+  // and the destructive-variant restore confirmation.
+  const saveVersion = async () => {
+    const name = await confirmDialog({
+      title: 'Save version',
+      inputMode: true,
+      inputLabel: 'Version name (e.g. Google application)',
+      defaultValue: `v${versions.length + 1}`,
+      confirmLabel: 'Save',
+    });
+    if (!name) return;
+    const { data } = await coverLetterAPI.saveVersion(id, { name });
+    setVersions((v) => [data, ...v]);
+    toast.success(`Version saved as "${name}"`);
+  };
+
+  const restoreVersion = async (versionId) => {
+    const ok = await confirmDialog({
+      title: 'Restore this version?',
+      message: 'Current content will be replaced.',
+      confirmLabel: 'Restore',
+      destructive: true,
+    });
+    if (!ok) return;
+    const { data } = await coverLetterAPI.restoreVersion(id, versionId);
+    setLetter(data);
+    toast.success('Version restored');
   };
 
   const deleteLetter = async () => {
@@ -245,6 +278,14 @@ export default function CoverLetterPage() {
               </span>
               <button
                 type="button"
+                onClick={() => setShowVersions(!showVersions)}
+                title="Version history"
+                className={showVersions ? 'app-btn-primary !p-2' : 'app-btn-secondary !p-2'}
+              >
+                <MotionIcon><History size={14} /></MotionIcon>
+              </button>
+              <button
+                type="button"
                 onClick={deleteLetter}
                 title="Delete"
                 className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
@@ -253,6 +294,27 @@ export default function CoverLetterPage() {
               </button>
             </div>
           </div>
+
+          {showVersions && (
+            <div className="p-3 rounded-lg border border-slate-200 bg-slate-50 text-sm">
+              <div className="flex justify-between mb-2">
+                <span className="font-medium text-slate-900">Saved versions</span>
+                <button type="button" onClick={saveVersion} className="text-brand-600 text-xs font-medium">+ Save version</button>
+              </div>
+              {versions.length ? (
+                <ul className="space-y-1 max-h-24 overflow-y-auto">
+                  {versions.map((v) => (
+                    <li key={v._id} className="flex justify-between items-center text-slate-600">
+                      <span>{v.name}</span>
+                      <button type="button" onClick={() => restoreVersion(v._id)} className="text-xs text-brand-600">Restore</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-500 text-xs">No versions yet</p>
+              )}
+            </div>
+          )}
 
           {['fullName', 'email', 'phone', 'location'].map((f) => (
             <div key={f}>

@@ -1,5 +1,6 @@
 import express from 'express';
 import CoverLetter from '../models/CoverLetter.js';
+import CoverLetterVersion from '../models/CoverLetterVersion.js';
 import Resume from '../models/Resume.js';
 import { protect } from '../middleware/auth.js';
 import { getSampleCoverLetterPayload } from '../utils/sampleResumeData.js';
@@ -115,6 +116,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
 router.delete('/:id', asyncHandler(async (req, res) => {
   await CoverLetter.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+  await CoverLetterVersion.deleteMany({ coverLetter: req.params.id });
   res.json({ message: 'Deleted' });
 }));
 
@@ -128,6 +130,39 @@ router.post('/:id/duplicate', asyncHandler(async (req, res) => {
     title: req.body.title || `${source.title} (Copy)`,
   });
   res.status(201).json(copy);
+}));
+
+router.get('/:id/versions', asyncHandler(async (req, res) => {
+  const versions = await CoverLetterVersion.find({
+    coverLetter: req.params.id,
+    user: req.user._id,
+  }).sort({ createdAt: -1 });
+  res.json(versions);
+}));
+
+router.post('/:id/versions', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  const version = await CoverLetterVersion.create({
+    coverLetter: letter._id,
+    user: req.user._id,
+    name: req.body.name || `Version ${new Date().toLocaleString()}`,
+    snapshot: coverLetterSnapshot(letter),
+  });
+  res.status(201).json(version);
+}));
+
+router.post('/:id/versions/:versionId/restore', asyncHandler(async (req, res) => {
+  const version = await CoverLetterVersion.findOne({
+    _id: req.params.versionId,
+    coverLetter: req.params.id,
+    user: req.user._id,
+  });
+  if (!version) return res.status(404).json({ message: 'Version not found' });
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  Object.assign(letter, version.snapshot);
+  await letter.save();
+  res.json(letter);
 }));
 
 router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {

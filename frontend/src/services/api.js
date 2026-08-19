@@ -65,6 +65,9 @@ export const coverLetterAPI = {
   update: (id, data) => api.put(`/cover-letters/${id}`, data),
   remove: (id) => api.delete(`/cover-letters/${id}`),
   duplicate: (id, data) => api.post(`/cover-letters/${id}/duplicate`, data),
+  versions: (id) => api.get(`/cover-letters/${id}/versions`),
+  saveVersion: (id, data) => api.post(`/cover-letters/${id}/versions`, data),
+  restoreVersion: (id, versionId) => api.post(`/cover-letters/${id}/versions/${versionId}/restore`),
   docx: (id) => api.post(`/cover-letters/${id}/docx`, {}, { responseType: 'blob' }),
   pdf: (id) => api.post(`/cover-letters/${id}/pdf`, {}, { responseType: 'blob' }),
 };
