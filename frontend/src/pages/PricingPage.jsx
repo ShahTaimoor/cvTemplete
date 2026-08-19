@@ -1,10 +1,12 @@
-import { Check, X, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { Check, X, Sparkles, Loader2 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '../utils/plans';
 import { subscriptionAPI } from '../services/api';
 import { fetchMe } from '../store/authSlice';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import Skeleton from '../components/common/Skeleton';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
 
@@ -22,6 +24,28 @@ function CellValue({ value }) {
   if (value === true) return <Check size={18} className="text-emerald-600 mx-auto" />;
   if (value === false) return <X size={18} className="text-slate-300 mx-auto" />;
   return <span className="text-sm font-medium text-slate-700">{value}</span>;
+}
+
+// Shape-matched placeholder for the plan cards, shown only while auth state
+// is still resolving (see `authChecked` below) — mirrors the real card's
+// header/price/badge/feature-list/button layout instead of a generic block.
+function PricingCardSkeleton() {
+  return (
+    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 sm:p-7">
+      <div className="mb-5 space-y-2">
+        <Skeleton shape="rounded" width="50%" height={22} />
+        <Skeleton shape="rounded" width="75%" height={14} />
+      </div>
+      <Skeleton shape="rounded" width="45%" height={38} className="mb-5" />
+      <Skeleton shape="rounded" className="w-full mb-5" height={34} />
+      <div className="space-y-3 mb-8 flex-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} shape="rounded" width={i % 2 === 0 ? '90%' : '75%'} height={14} />
+        ))}
+      </div>
+      <Skeleton shape="rounded" className="w-full" height={46} />
+    </div>
+  );
 }
 
 /** What a user on `planId` actually loses by dropping to Free, sourced from
@@ -43,15 +67,21 @@ function getDowngradeLosses(planId) {
 }
 
 export default function PricingPage() {
-  const { user } = useSelector((s) => s.auth);
+  const { user, authChecked } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const toast = useToast();
   const confirmDialog = useConfirm();
   const currentPlan = user?.subscription?.plan || 'free';
+  // Plan id whose upgrade/downgrade request is currently in flight (or the
+  // sentinel 'free' for a downgrade), or null when idle — drives both the
+  // disabled/loading state on the clicked button and the double-click guard
+  // below, since `subscriptionAPI.upgrade` has no other in-flight tracking.
+  const [upgradingId, setUpgradingId] = useState(null);
 
   const handleDowngrade = async () => {
     const losses = getDowngradeLosses(currentPlan);
+    setUpgradingId('free');
     const ok = await confirmDialog({
       title: 'Downgrade to Free plan?',
       message: `You'll lose: ${losses.join(', ')}. This takes effect immediately.`,
@@ -59,13 +89,18 @@ export default function PricingPage() {
       cancelLabel: 'Cancel',
       destructive: true,
     });
-    if (!ok) return;
+    if (!ok) {
+      setUpgradingId(null);
+      return;
+    }
     try {
       await subscriptionAPI.upgrade('free');
       dispatch(fetchMe());
       toast.success('Downgraded to Free plan');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Downgrade failed');
+    } finally {
+      setUpgradingId(null);
     }
   };
 
@@ -74,10 +109,12 @@ export default function PricingPage() {
       navigate('/register');
       return;
     }
+    if (upgradingId) return;
     if (planId === 'free') {
       await handleDowngrade();
       return;
     }
+    setUpgradingId(planId);
     try {
       await subscriptionAPI.upgrade(planId);
       dispatch(fetchMe());
@@ -85,8 +122,38 @@ export default function PricingPage() {
       toast.success(`Upgraded to ${planName} successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Upgrade failed');
+    } finally {
+      setUpgradingId(null);
     }
   };
+
+  // Wait for the initial /me check (dispatched on app mount) to settle
+  // before committing to either the logged-in (DashboardLayout) or public
+  // shell, and before rendering plan-dependent content like "Current plan"
+  // highlighting. Without this, a hard refresh on /pricing while genuinely
+  // logged in briefly rendered the public shell and un-highlighted cards
+  // (since `user` starts null), then flipped once fetchMe() resolved. This
+  // only ever blocks on a real, fast-resolving check — for a logged-out
+  // visitor fetchMe() still settles authChecked (to `user: null`) almost
+  // immediately, so pricing shows correctly and promptly for them too.
+  if (!authChecked) {
+    return (
+      <div className="bg-slate-50 min-h-screen">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
+          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14 space-y-4">
+            <Skeleton shape="rounded" width={120} height={26} className="mx-auto" />
+            <Skeleton shape="rounded" width="60%" height={40} className="mx-auto" />
+            <Skeleton shape="rounded" width="80%" height={20} className="mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-5 items-stretch mb-16 lg:mb-20">
+            {PLANS.map((plan) => (
+              <PricingCardSkeleton key={plan.id} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const content = (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
@@ -112,6 +179,7 @@ export default function PricingPage() {
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id;
           const isPopular = plan.popular;
+          const isBusy = upgradingId === plan.id;
           return (
             <div
               key={plan.id}
@@ -157,17 +225,26 @@ export default function PricingPage() {
 
               <button
                 type="button"
-                disabled={isCurrent}
+                disabled={isCurrent || !!upgradingId}
                 onClick={() => handleUpgrade(plan.id)}
                 className={
                   isCurrent
                     ? 'w-full py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-sm cursor-default'
                     : isPopular
-                      ? 'app-btn-primary w-full !py-3 !rounded-xl'
-                      : 'app-btn-secondary w-full !py-3 !rounded-xl'
+                      ? 'app-btn-primary w-full !py-3 !rounded-xl gap-2 disabled:opacity-50'
+                      : 'app-btn-secondary w-full !py-3 !rounded-xl gap-2 disabled:opacity-50'
                 }
               >
-                {isCurrent ? 'Current plan' : plan.price === 0 ? 'Get started free' : 'Upgrade now'}
+                {isBusy && <Loader2 size={16} className="animate-spin" />}
+                {isCurrent
+                  ? 'Current plan'
+                  : isBusy
+                    ? plan.price === 0
+                      ? 'Downgrading...'
+                      : 'Upgrading...'
+                    : plan.price === 0
+                      ? 'Get started free'
+                      : 'Upgrade now'}
               </button>
             </div>
           );

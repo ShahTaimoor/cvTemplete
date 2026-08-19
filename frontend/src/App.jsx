@@ -36,7 +36,7 @@ function PageTransition({ children }) {
 
 function AppRoutes() {
   const location = useLocation();
-  const { user } = useSelector((s) => s.auth);
+  const { user, authChecked } = useSelector((s) => s.auth);
 
   const usesAppShell =
     user &&
@@ -47,10 +47,20 @@ function AppRoutes() {
       location.pathname.startsWith('/builder') ||
       location.pathname.startsWith('/cover-letter'));
 
+  // /pricing is the one dual-audience route here — reachable both logged
+  // out and logged in, so it isn't behind ProtectedRoute (which already
+  // withholds rendering entirely until authChecked settles). Without this,
+  // `usesAppShell` reads `user` before the initial fetchMe() resolves,
+  // sees it as null, and briefly renders this public Navbar (logged-out
+  // "Sign in"/"Get started" buttons) over a genuinely logged-in user's
+  // hard refresh — PricingPage itself waits on authChecked too (see its
+  // own skeleton), so withholding the navbar here keeps the two in sync
+  // instead of showing the wrong chrome around a correct skeleton.
   const showPublicNav =
     !['/login', '/register'].includes(location.pathname) &&
     !location.pathname.startsWith('/print') &&
-    !usesAppShell;
+    !usesAppShell &&
+    (location.pathname !== '/pricing' || authChecked);
 
   return (
     <>
