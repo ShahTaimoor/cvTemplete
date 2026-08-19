@@ -177,6 +177,44 @@ function ResumeCardSkeleton() {
   );
 }
 
+// Same color-swatch fallback ResumeCardThumbnail uses for resumes without a
+// generated thumbnail yet (same box classes, same getTemplatePreset color
+// source) — a real Puppeteer-rendered preview is a separate, bigger
+// follow-up; this just brings Cover Letter cards to the same visual weight
+// as resume cards today. The Mail icon (already the section's own icon,
+// and the per-resume-card "Cover letter" button's icon) marks it as
+// content rather than a blank swatch.
+function CoverLetterSwatch({ letter }) {
+  const preset = getTemplatePreset(letter.templateSlug);
+  return (
+    <div
+      className="w-full aspect-[210/297] rounded-lg mb-3 flex items-center justify-center border border-slate-200"
+      style={{ backgroundColor: preset.primary }}
+      aria-hidden
+    >
+      <Mail size={40} className="text-white/70" />
+    </div>
+  );
+}
+
+// Mirrors the real card's swatch + title + meta + button-row layout below —
+// one fewer action button than ResumeCardSkeleton since Cover Letter cards
+// only have Edit/Delete, not Duplicate/Cover-letter-shortcut too.
+function CoverLetterCardSkeleton() {
+  return (
+    <div className="app-card p-5">
+      <Skeleton shape="rounded" className="w-full aspect-[210/297] mb-3" />
+      <Skeleton shape="rounded" width="65%" height={16} className="mb-2" />
+      <Skeleton shape="rounded" width="50%" height={10} className="mb-2" />
+      <Skeleton shape="rounded" width="40%" height={10} />
+      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+        <Skeleton shape="rounded" className="flex-1 min-w-[80px]" height={38} />
+        <Skeleton shape="rounded" width={38} height={38} />
+      </div>
+    </div>
+  );
+}
+
 // A resume counts as "likely mid-generation" if it was edited very recently
 // but its thumbnail hasn't caught up yet — either never generated, or
 // generated before this latest edit (stale).
@@ -210,6 +248,7 @@ export default function DashboardPage() {
   const [resumesLoaded, setResumesLoaded] = useState(false);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
   const [insightLoaded, setInsightLoaded] = useState(false);
+  const [coverLettersLoaded, setCoverLettersLoaded] = useState(false);
 
   // Thumbnail generation (on Builder-exit, or the self-healing retry below)
   // is fire-and-forget and takes a few seconds — a resume can land here, or
@@ -343,7 +382,9 @@ export default function DashboardPage() {
     dispatch(fetchResumes()).finally(() => setResumesLoaded(true));
     dispatch(fetchTemplates()).finally(() => setTemplatesLoaded(true));
     if (plan === 'premium') {
-      coverLetterAPI.list().then((r) => setCoverLetters(r.data)).catch(() => {});
+      coverLetterAPI.list().then((r) => setCoverLetters(r.data)).catch(() => {}).finally(() => setCoverLettersLoaded(true));
+    } else {
+      setCoverLettersLoaded(true);
     }
     if (['pro', 'premium'].includes(plan)) {
       resumeAPI.dashboardInsight().then((r) => setInsight(r.data)).catch(() => {}).finally(() => setInsightLoaded(true));
@@ -486,36 +527,65 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
 
-        {plan === 'premium' && coverLetters.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+        {plan === 'premium' && (
+          <>
+            <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Mail size={18} className="text-brand-600" />
               Cover letters
             </h2>
-            <div className="flex flex-wrap gap-2">
-              {coverLetters.map((c) => (
-                <div
-                  key={c._id}
-                  className="flex items-center gap-1 rounded-lg bg-white border border-slate-200 pl-4 pr-1.5 py-1.5 hover:border-brand-300"
-                >
-                  <Link
-                    to={`/cover-letter/${c._id}`}
-                    className="text-sm font-medium text-slate-700 hover:text-brand-700"
+            {!coverLettersLoaded ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <CoverLetterCardSkeleton key={i} />
+                ))}
+              </div>
+            ) : (
+              <motion.div
+                className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"
+                initial="hidden"
+                animate="visible"
+                variants={staggerContainer()}
+              >
+                {coverLetters.map((c) => (
+                  <motion.article
+                    key={c._id}
+                    variants={staggerItem}
+                    className="app-card p-5 hover:border-brand-200 transition-colors"
                   >
-                    {c.title}
-                  </Link>
-                  <button
-                    type="button"
-                    title="Delete"
-                    onClick={() => deleteCoverLetter(c._id)}
-                    className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50"
-                  >
-                    <MotionIcon><Trash2 size={14} /></MotionIcon>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+                    <CoverLetterSwatch letter={c} />
+                    <h3 className="font-semibold text-slate-900 truncate">{c.title}</h3>
+                    {c.resume?.title && (
+                      <p className="text-xs text-slate-500 mt-1 truncate">For {c.resume.title}</p>
+                    )}
+                    <p className="text-xs text-slate-400 mt-2">
+                      Updated {new Date(c.updatedAt).toLocaleDateString()}
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
+                      <Link to={`/cover-letter/${c._id}`} className="app-btn-primary flex-1 text-center !py-2 min-w-[80px]">
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => deleteCoverLetter(c._id)}
+                        className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
+                      >
+                        <MotionIcon><Trash2 size={18} /></MotionIcon>
+                      </button>
+                    </div>
+                  </motion.article>
+                ))}
+                {!coverLetters.length && (
+                  <div className="col-span-full app-card p-12 text-center">
+                    <Mail className="mx-auto text-slate-300 mb-3" size={40} />
+                    <p className="text-slate-600 font-medium">No cover letters yet</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Create one from any resume card below — we'll match its personal details and template automatically.
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </>
         )}
 
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Your resumes</h2>

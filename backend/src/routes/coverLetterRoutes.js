@@ -20,7 +20,9 @@ const requirePremium = (req, res, next) => {
 router.use(requirePremium);
 
 router.get('/', asyncHandler(async (req, res) => {
-  const letters = await CoverLetter.find({ user: req.user._id }).sort({ updatedAt: -1 });
+  const letters = await CoverLetter.find({ user: req.user._id })
+    .sort({ updatedAt: -1 })
+    .populate('resume', 'title');
   res.json(letters);
 }));
 
