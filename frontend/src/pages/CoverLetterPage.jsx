@@ -77,13 +77,15 @@ export default function CoverLetterPage() {
   const { user } = useSelector((s) => s.auth);
   const plan = user?.subscription?.plan || 'free';
   const [letter, setLetter] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [mobileTab, setMobileTab] = useState('edit');
 
   useEffect(() => {
     if (plan !== 'premium') return;
-    coverLetterAPI.get(id).then((r) => setLetter(r.data));
+    coverLetterAPI.get(id).then((r) => setLetter(r.data)).catch(() => setLoadError(true));
   }, [id, plan]);
 
   const update = (key, value) => setLetter((prev) => ({ ...prev, [key]: value }));
@@ -118,9 +120,14 @@ export default function CoverLetterPage() {
 
   useCoverLetterAutoSave(letter, save);
 
+  // Matches BuilderPage.jsx's downloadDocx exactly (Resume's DOCX export).
   const exportDocx = async () => {
-    const { data } = await coverLetterAPI.docx(id);
-    downloadBlob(data, `${letter.title || 'cover-letter'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    try {
+      const { data } = await coverLetterAPI.docx(id);
+      downloadBlob(data, `${letter.title || 'cover-letter'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    } catch {
+      toast.error('DOCX export failed');
+    }
   };
 
   const deleteLetter = async () => {
@@ -150,6 +157,20 @@ export default function CoverLetterPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-lg mx-auto py-16 text-center px-4">
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Couldn't load this cover letter</h1>
+          <p className="text-slate-600 mb-4">It may have been deleted, or something went wrong loading it. Try again from your dashboard.</p>
+          <Link to="/dashboard" className="text-brand-600 font-semibold hover:underline">
+            Back to Dashboard
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   if (!letter) {
     return (
       <DashboardLayout fullHeight>
@@ -160,8 +181,27 @@ export default function CoverLetterPage() {
 
   return (
     <DashboardLayout fullHeight>
-      <div className="h-full flex flex-col lg:flex-row">
-        <div className="lg:w-1/2 p-4 overflow-y-auto border-r border-slate-200 bg-white space-y-4">
+      <div className="h-full flex flex-col">
+        <div className="lg:hidden flex border-b border-slate-200 bg-white shrink-0">
+          {['edit', 'preview'].map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setMobileTab(tab)}
+              className={`flex-1 py-2.5 text-sm font-medium capitalize ${
+                mobileTab === tab ? 'text-brand-600 border-b-2 border-brand-600' : 'text-slate-500'
+              }`}
+            >
+              {tab === 'edit' ? 'Edit' : 'Preview'}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        <div
+          className={`lg:w-1/2 p-4 overflow-y-auto border-r border-slate-200 bg-white space-y-4 ${
+            mobileTab !== 'edit' ? 'hidden lg:block' : ''
+          }`}
+        >
           <div className="flex justify-between items-center gap-2">
             <input
               value={letter.title}
@@ -234,9 +274,14 @@ export default function CoverLetterPage() {
           </button>
         </div>
 
-        <div className="lg:w-1/2 p-4 overflow-y-auto bg-slate-100">
+        <div
+          className={`lg:w-1/2 p-4 overflow-y-auto bg-slate-100 ${
+            mobileTab !== 'preview' ? 'hidden lg:block' : ''
+          }`}
+        >
           <p className="text-xs text-center text-slate-600 mb-2 font-medium">Preview</p>
           <CoverLetterPreview letter={letter} />
+        </div>
         </div>
       </div>
     </DashboardLayout>

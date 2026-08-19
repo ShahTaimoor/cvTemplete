@@ -1,6 +1,7 @@
 import express from 'express';
 import Resume from '../models/Resume.js';
 import ResumeVersion from '../models/ResumeVersion.js';
+import CoverLetter from '../models/CoverLetter.js';
 import Template from '../models/Template.js';
 import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
@@ -222,6 +223,13 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   await ResumeVersion.deleteMany({ resume: req.params.id });
+  // Unlink rather than cascade-delete: a cover letter is separately authored
+  // content (the user's own writing), not a derived artifact of the resume
+  // it was originally created from — deleting the resume shouldn't silently
+  // destroy it too. The letter keeps existing normally, it just stops
+  // showing a "For: <resume>" link (see coverLetterRoutes.js's populate on
+  // the list endpoint, which already tolerates a null resume gracefully).
+  await CoverLetter.updateMany({ resume: req.params.id }, { $set: { resume: null } });
   res.json({ message: 'Resume deleted' });
 }));
 
