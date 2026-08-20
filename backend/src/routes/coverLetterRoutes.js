@@ -10,6 +10,7 @@ import { generateCoverLetterPdf } from '../services/coverLetterPdfService.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { buildDailyTimeline, timelineStartDate } from '../utils/analytics.js';
+import { generateCoverLetterThumbnail, generateAndSaveThumbnail, fulfillIfDue, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
 
 const router = express.Router();
 router.use(protect);
@@ -57,6 +58,10 @@ router.get('/', asyncHandler(async (req, res) => {
     .sort({ updatedAt: -1 })
     .populate('resume', 'title');
   res.json(letters);
+
+  // Opportunistic fulfillment of any deferred regenerations whose cooldown
+  // has since passed — mirrors resumeRoutes.js's GET / exactly.
+  letters.forEach((c) => fulfillIfDue(CoverLetter, c, req.user._id, generateCoverLetterThumbnail));
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
@@ -102,6 +107,10 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   res.json(letter);
+
+  // Also exactly the request CoverLettersPage.jsx's watchThumbnail polls
+  // repeatedly while waiting — mirrors resumeRoutes.js's GET /:id exactly.
+  fulfillIfDue(CoverLetter, letter, req.user._id, generateCoverLetterThumbnail);
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
@@ -231,6 +240,29 @@ router.get('/:id/analytics', asyncHandler(async (req, res) => {
     totalDownloads,
     timeline: buildDailyTimeline(recentEvents, DAYS),
   });
+}));
+
+// Mirrors resumeRoutes.js's POST /:id/thumbnail exactly — same throttle
+// (shouldRegenerateThumbnail), same deferred-not-dropped handling of a
+// throttled request (thumbnailPending, fulfilled later by fulfillIfDue),
+// same 202 status either way (immediate vs pending, distinguished by the
+// response body) the frontend's poller relies on.
+router.post('/:id/thumbnail', exportLimiter, asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id })
+    .select('_id thumbnailGeneratedAt thumbnailPending');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+
+  if (!shouldRegenerateThumbnail(letter)) {
+    if (!letter.thumbnailPending) {
+      await CoverLetter.findByIdAndUpdate(letter._id, { thumbnailPending: true });
+    }
+    return res.status(202).json({ status: 'pending' });
+  }
+
+  res.status(202).json({ status: 'started' });
+  generateAndSaveThumbnail(CoverLetter, letter, req.user._id, generateCoverLetterThumbnail).catch((err) =>
+    console.error('Thumbnail generation failed:', err)
+  );
 }));
 
 export default router;

@@ -9,7 +9,7 @@ import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAcc
 import { analyzeResume } from '../services/atsService.js';
 import { buildResumeDocx } from '../services/docxService.js';
 import { generateResumePdf } from '../services/pdfService.js';
-import { generateResumeThumbnail, saveResumeThumbnail, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
+import { generateResumeThumbnail, generateAndSaveThumbnail, fulfillIfDue, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -47,6 +47,11 @@ router.get('/', asyncHandler(async (req, res) => {
     .sort({ updatedAt: -1 })
     .select('-__v');
   res.json(resumes);
+
+  // Opportunistic fulfillment of any deferred regenerations whose cooldown
+  // has since passed (see thumbnailService.js's fulfillIfDue) — cheap
+  // no-op for the vast majority of resumes (thumbnailPending is false).
+  resumes.forEach((r) => fulfillIfDue(Resume, r, req.user._id, generateResumeThumbnail));
 }));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -214,6 +219,13 @@ router.get('/:id', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
   res.json(resume);
+
+  // This is also exactly the request ResumesPage.jsx's watchThumbnail
+  // polls every couple of seconds while waiting on a thumbnail — so a
+  // deferred regeneration (thumbnailPending, still cooling down at request
+  // time) naturally gets fulfilled by that same polling once due, with no
+  // separate check/notification mechanism needed.
+  fulfillIfDue(Resume, resume, req.user._id, generateResumeThumbnail);
 }));
 
 router.put('/:id', asyncHandler(async (req, res) => {
@@ -402,22 +414,26 @@ router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
 // save after, rather than holding the connection open across a Puppeteer run.
 router.post('/:id/thumbnail', exportLimiter, asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id })
-    .select('_id thumbnailGeneratedAt');
+    .select('_id thumbnailGeneratedAt thumbnailPending');
   if (!resume) return res.status(404).json({ message: 'Resume not found' });
 
   if (!shouldRegenerateThumbnail(resume)) {
-    return res.status(204).end();
+    // Still within the cooldown — don't just drop this request (the
+    // original bug: a legitimate regeneration silently lost, leaving a
+    // stale thumbnail until another edit happened to land outside the
+    // window). Mark it pending instead; fulfillIfDue (see GET / and
+    // GET /:id above, and thumbnailService.js) fulfills it automatically
+    // once the cooldown passes, no further action needed from the client.
+    if (!resume.thumbnailPending) {
+      await Resume.findByIdAndUpdate(resume._id, { thumbnailPending: true });
+    }
+    return res.status(202).json({ status: 'pending' });
   }
 
-  res.status(202).end();
-  (async () => {
-    const buffer = await generateResumeThumbnail(resume._id, req.user._id);
-    const url = await saveResumeThumbnail(buffer);
-    await Resume.findByIdAndUpdate(resume._id, {
-      thumbnailUrl: url,
-      thumbnailGeneratedAt: new Date(),
-    });
-  })().catch((err) => console.error('Thumbnail generation failed:', err));
+  res.status(202).json({ status: 'started' });
+  generateAndSaveThumbnail(Resume, resume, req.user._id, generateResumeThumbnail).catch((err) =>
+    console.error('Thumbnail generation failed:', err)
+  );
 }));
 
 // PNG export happens entirely client-side (html-to-image) — no server

@@ -95,6 +95,23 @@ export default function CoverLetterPage() {
     coverLetterAPI.versions(id).then((r) => setVersions(r.data)).catch(() => {});
   }, [id, plan]);
 
+  // Matches BuilderPage.jsx's thumbnail-regeneration effect exactly (Resume's
+  // Builder-exit trigger for its Dashboard card thumbnail): regenerate on
+  // the way out, not on every autosave, fire-and-forget, and the backend
+  // throttles/no-ops if we were just here. See BuilderPage.jsx for the full
+  // explanation of the `mounted` timer guard against React 18 StrictMode's
+  // dev-only mount→cleanup→mount double-invoke.
+  useEffect(() => {
+    let mounted = false;
+    const timer = setTimeout(() => { mounted = true; }, 0);
+    return () => {
+      clearTimeout(timer);
+      if (mounted) {
+        coverLetterAPI.regenerateThumbnail(id).catch(() => {});
+      }
+    };
+  }, [id]);
+
   const update = (key, value) => setLetter((prev) => ({ ...prev, [key]: value }));
 
   const updatePersonal = (key, value) =>

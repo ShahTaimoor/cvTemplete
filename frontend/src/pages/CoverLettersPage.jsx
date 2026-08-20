@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
@@ -15,22 +15,44 @@ import Skeleton from '../components/common/Skeleton';
 
 const PAGE_SIZE = 9;
 
-// Same color-swatch fallback ResumeCardThumbnail uses for resumes without a
-// generated thumbnail yet (same box classes, same getTemplatePreset color
-// source) — a real Puppeteer-rendered preview is a separate, bigger
-// follow-up; this just brings Cover Letter cards to the same visual weight
-// as resume cards. The Mail icon (this page's own icon, and the
-// per-resume-card "Cover letter" button's icon) marks it as content rather
-// than a blank swatch.
-function CoverLetterSwatch({ letter }) {
+// Server-generated screenshot of the cover letter's actual content (see
+// backend/src/services/thumbnailService.js's generateCoverLetterThumbnail),
+// regenerated whenever the editor is exited — mirrors ResumeCardThumbnail
+// in ResumesPage.jsx exactly (same broken-image self-heal contract via
+// onBroken, same key={thumbnailUrl} remount trick at the call site so a
+// healed URL actually gets rendered instead of being stranded on the
+// fallback). Falls back to the same Mail-icon color swatch this page
+// already used before real thumbnails existed, for letters that don't
+// have one yet (brand new, or older than this feature).
+function CoverLetterCardThumbnail({ letter, onBroken }) {
+  const [broken, setBroken] = useState(false);
+  const showImage = !!letter.thumbnailUrl && !broken;
   const preset = getTemplatePreset(letter.templateSlug);
+
+  const handleError = () => {
+    setBroken(true);
+    onBroken?.(letter._id, letter.thumbnailGeneratedAt || null);
+  };
+
   return (
     <div
-      className="w-full aspect-[210/297] rounded-lg mb-3 flex items-center justify-center border border-slate-200"
-      style={{ backgroundColor: preset.primary }}
+      className="w-full aspect-[210/297] rounded-lg mb-3 overflow-hidden border border-slate-200"
+      style={!showImage ? { backgroundColor: preset.primary } : undefined}
       aria-hidden
     >
-      <Mail size={40} className="text-white/70" />
+      {showImage ? (
+        <img
+          src={letter.thumbnailUrl}
+          alt=""
+          className="w-full h-full object-cover object-top"
+          loading="lazy"
+          onError={handleError}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Mail size={40} className="text-white/70" />
+        </div>
+      )}
     </div>
   );
 }
@@ -52,6 +74,23 @@ function CoverLetterCardSkeleton() {
   );
 }
 
+// A cover letter counts as "likely mid-generation" either because it was
+// edited very recently and its thumbnail hasn't caught up yet, or because
+// the server explicitly deferred a regeneration for it (thumbnailPending —
+// see thumbnailService.js's fulfillIfDue). Mirrors isThumbnailPending in
+// ResumesPage.jsx exactly, including thumbnailPending being unbounded by
+// POLL_CANDIDATE_WINDOW_MS on purpose — it's an authoritative server
+// signal, not a client-side time guess, and can stay true for as long as
+// the throttle cooldown (several minutes), well past that window.
+const POLL_CANDIDATE_WINDOW_MS = 30_000;
+const isThumbnailPending = (letter) => {
+  if (letter.thumbnailPending) return true;
+  const updatedAt = new Date(letter.updatedAt).getTime();
+  if (Date.now() - updatedAt > POLL_CANDIDATE_WINDOW_MS) return false;
+  const generatedAt = letter.thumbnailGeneratedAt ? new Date(letter.thumbnailGeneratedAt).getTime() : null;
+  return !generatedAt || generatedAt < updatedAt;
+};
+
 export default function CoverLettersPage() {
   const navigate = useNavigate();
   const confirmDialog = useConfirm();
@@ -65,6 +104,94 @@ export default function CoverLettersPage() {
     if (plan !== 'premium') return;
     coverLetterAPI.list().then((r) => setCoverLetters(r.data)).catch(() => {}).finally(() => setCoverLettersLoaded(true));
   }, [plan]);
+
+  // Thumbnail generation (on editor-exit, or the self-healing retry below)
+  // is fire-and-forget and takes a few seconds — mirrors ResumesPage.jsx's
+  // thumbnailOverrides/watchThumbnail/handleThumbnailBroken trio exactly,
+  // including the reasoning in its comments: polled updates are kept in a
+  // separate map and merged into each card's props at render time, rather
+  // than folded into `coverLetters` directly, because this grid plays a
+  // staggerChildren entrance animation on mount — updating the mapped
+  // array's reference while that's still mid-sequence can permanently
+  // strand not-yet-animated children at opacity:0 (a real Framer Motion
+  // gotcha, not hypothetical — see ResumesPage.jsx's own note on the
+  // original Dashboard card-invisibility bug this exact pattern fixed).
+  const [thumbnailOverrides, setThumbnailOverrides] = useState({});
+
+  // De-dupes concurrent watchers for the same letter — both the "just
+  // edited" candidate scan below and the self-healing onError path further
+  // down can want to watch the same id.
+  const activeRef = useRef(new Set());
+  const unmountedRef = useRef(false);
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => { unmountedRef.current = true; };
+  }, []);
+
+  // Shared poller: watches one cover letter until its thumbnailGeneratedAt
+  // moves on from `baselineGeneratedAt` or a bounded timeout elapses.
+  // Mirrors watchThumbnail in ResumesPage.jsx exactly, using
+  // coverLetterAPI in place of resumeAPI — including the `deferred` mode
+  // for a thumbnailPending item, which polls much slower but for much
+  // longer (this same GET is what makes the server's fulfillIfDue actually
+  // fire once the cooldown passes — see coverLetterRoutes.js).
+  const watchThumbnail = useCallback((letterId, baselineGeneratedAt, deferred = false) => {
+    if (activeRef.current.has(letterId)) return;
+    activeRef.current.add(letterId);
+
+    const POLL_INTERVAL_MS = deferred ? 15_000 : 2_000;
+    const TIMEOUT_MS = deferred ? 6 * 60 * 1000 : 12_000; // 6min covers the 5min cooldown plus generation time
+    const startedAt = Date.now();
+
+    const poll = async () => {
+      if (unmountedRef.current) { activeRef.current.delete(letterId); return; }
+      const data = await coverLetterAPI.get(letterId).then((r) => r.data).catch(() => null);
+      if (unmountedRef.current) { activeRef.current.delete(letterId); return; }
+
+      if (data?.thumbnailGeneratedAt &&
+          (!baselineGeneratedAt || new Date(data.thumbnailGeneratedAt) > new Date(baselineGeneratedAt))) {
+        setThumbnailOverrides((prev) => ({
+          ...prev,
+          [letterId]: { thumbnailUrl: data.thumbnailUrl, thumbnailGeneratedAt: data.thumbnailGeneratedAt },
+        }));
+        activeRef.current.delete(letterId);
+        return;
+      }
+
+      if (Date.now() - startedAt < TIMEOUT_MS) {
+        setTimeout(poll, POLL_INTERVAL_MS);
+      } else {
+        activeRef.current.delete(letterId);
+      }
+    };
+
+    setTimeout(poll, POLL_INTERVAL_MS);
+  }, []);
+
+  useEffect(() => {
+    coverLetters.filter(isThumbnailPending).forEach((c) => watchThumbnail(c._id, c.thumbnailGeneratedAt || null, !!c.thumbnailPending));
+  }, [coverLetters, watchThumbnail]);
+
+  // Self-healing on a broken thumbnail URL — mirrors handleThumbnailBroken
+  // in ResumesPage.jsx exactly, through the same throttled endpoint the
+  // editor-exit trigger uses, so a burst of simultaneously-broken
+  // thumbnails doesn't spam Puppeteer. The endpoint now always accepts the
+  // request (202, either `status: 'started'` or `status: 'pending'`)
+  // rather than silently dropping a throttled one, so both cases are
+  // watched; only the poll's own interval/timeout differ between them.
+  const handleThumbnailBroken = useCallback((letterId, currentGeneratedAt) => {
+    if (activeRef.current.has(letterId)) return;
+    activeRef.current.add(letterId);
+    coverLetterAPI
+      .regenerateThumbnail(letterId)
+      .then((res) => {
+        activeRef.current.delete(letterId);
+        if (res.data?.status === 'started' || res.data?.status === 'pending') {
+          watchThumbnail(letterId, currentGeneratedAt, res.data.status === 'pending');
+        }
+      })
+      .catch(() => { activeRef.current.delete(letterId); });
+  }, [watchThumbnail]);
 
   // Matches duplicateResume exactly: the "(Copy)" suffix is applied here
   // (not left to the backend's own fallback), and it navigates straight
@@ -145,7 +272,11 @@ export default function CoverLettersPage() {
                 variants={staggerItem}
                 className="app-card p-5 hover:border-brand-200 transition-colors"
               >
-                <CoverLetterSwatch letter={c} />
+                <CoverLetterCardThumbnail
+                  key={thumbnailOverrides[c._id]?.thumbnailUrl ?? c.thumbnailUrl}
+                  letter={thumbnailOverrides[c._id] ? { ...c, ...thumbnailOverrides[c._id] } : c}
+                  onBroken={handleThumbnailBroken}
+                />
                 <h3 className="font-semibold text-slate-900 truncate">{c.title}</h3>
                 {c.resume?.title && (
                   <p className="text-xs text-slate-500 mt-1 truncate">For {c.resume.title}</p>

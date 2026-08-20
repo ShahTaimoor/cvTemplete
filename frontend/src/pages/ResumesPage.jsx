@@ -78,11 +78,18 @@ function ResumeCardSkeleton() {
   );
 }
 
-// A resume counts as "likely mid-generation" if it was edited very recently
-// but its thumbnail hasn't caught up yet — either never generated, or
-// generated before this latest edit (stale).
+// A resume counts as "likely mid-generation" either because it was edited
+// very recently and its thumbnail hasn't caught up yet (never generated,
+// or generated before this latest edit), or because the server has
+// explicitly deferred a regeneration for it (thumbnailPending — see
+// thumbnailService.js's fulfillIfDue) while a throttle cooldown that can
+// run up to several minutes is still in effect. That second case is
+// unbounded by POLL_CANDIDATE_WINDOW_MS on purpose: thumbnailPending is an
+// authoritative signal from the server, not a client-side time guess, and
+// it can legitimately still be true well outside the "just edited" window.
 const POLL_CANDIDATE_WINDOW_MS = 30_000;
 const isThumbnailPending = (resume) => {
+  if (resume.thumbnailPending) return true;
   const updatedAt = new Date(resume.updatedAt).getTime();
   if (Date.now() - updatedAt > POLL_CANDIDATE_WINDOW_MS) return false;
   const generatedAt = resume.thumbnailGeneratedAt ? new Date(resume.thumbnailGeneratedAt).getTime() : null;
@@ -141,12 +148,22 @@ export default function ResumesPage() {
   // (below) and for resumes a card reports as broken (see
   // handleThumbnailBroken) — the same mechanism serves both cases, not two
   // parallel copies of it.
-  const watchThumbnail = useCallback((resumeId, baselineGeneratedAt) => {
+  //
+  // `deferred` (true when the server reported thumbnailPending — a request
+  // it accepted but couldn't start yet, still cooling down) switches this
+  // to a much slower, much longer-lived poll: the cooldown itself can run
+  // up to five minutes, and this same GET is what makes fulfillIfDue
+  // actually fire server-side once due (see resumeRoutes.js), so the poll
+  // has to keep going long enough to be the thing that eventually triggers
+  // its own answer. Polling every 2s for 5+ minutes would be ~150 requests
+  // for one thumbnail, so the interval backs off accordingly — precision
+  // doesn't matter at that timescale the way it does for the fast path.
+  const watchThumbnail = useCallback((resumeId, baselineGeneratedAt, deferred = false) => {
     if (activeRef.current.has(resumeId)) return;
     activeRef.current.add(resumeId);
 
-    const POLL_INTERVAL_MS = 2000;
-    const TIMEOUT_MS = 12_000;
+    const POLL_INTERVAL_MS = deferred ? 15_000 : 2_000;
+    const TIMEOUT_MS = deferred ? 6 * 60 * 1000 : 12_000; // 6min covers the 5min cooldown plus generation time
     const startedAt = Date.now();
 
     const poll = async () => {
@@ -181,7 +198,7 @@ export default function ResumesPage() {
   }, []);
 
   useEffect(() => {
-    list.filter(isThumbnailPending).forEach((r) => watchThumbnail(r._id, r.thumbnailGeneratedAt || null));
+    list.filter(isThumbnailPending).forEach((r) => watchThumbnail(r._id, r.thumbnailGeneratedAt || null, !!r.thumbnailPending));
   }, [list, watchThumbnail]);
 
   // Self-healing: a card's thumbnailUrl can be correct in the database but
@@ -190,8 +207,12 @@ export default function ResumesPage() {
   // happens the <img> 404s and ResumeCardThumbnail reports it here — kick
   // off a regeneration (through the same throttled endpoint Builder-exit
   // uses, so a burst of simultaneously-broken thumbnails doesn't spam
-  // Puppeteer) and, only if one was actually triggered, watch for it with
-  // the exact same poller used for post-edit updates above.
+  // Puppeteer) and watch for it with the exact same poller used for
+  // post-edit updates above. The endpoint now always accepts the request
+  // (202, either `status: 'started'` or `status: 'pending'` if still
+  // cooling down — see resumeRoutes.js) rather than silently dropping a
+  // throttled one, so both cases are watched; only the poll's own
+  // interval/timeout differ between them.
   const handleThumbnailBroken = useCallback((resumeId, currentGeneratedAt) => {
     if (activeRef.current.has(resumeId)) return;
     activeRef.current.add(resumeId);
@@ -199,8 +220,8 @@ export default function ResumesPage() {
       .regenerateThumbnail(resumeId)
       .then((res) => {
         activeRef.current.delete(resumeId);
-        if (res.status === 202) {
-          watchThumbnail(resumeId, currentGeneratedAt);
+        if (res.data?.status === 'started' || res.data?.status === 'pending') {
+          watchThumbnail(resumeId, currentGeneratedAt, res.data.status === 'pending');
         }
       })
       .catch(() => { activeRef.current.delete(resumeId); });

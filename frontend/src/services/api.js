@@ -72,6 +72,7 @@ export const coverLetterAPI = {
   pdf: (id) => api.post(`/cover-letters/${id}/pdf`, {}, { responseType: 'blob' }),
   share: (id) => api.post(`/cover-letters/${id}/share`),
   analytics: (id) => api.get(`/cover-letters/${id}/analytics`),
+  regenerateThumbnail: (id) => api.post(`/cover-letters/${id}/thumbnail`),
 };
 
 export const subscriptionAPI = {

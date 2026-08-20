@@ -29,6 +29,11 @@ const coverLetterSchema = new mongoose.Schema(
     closing: { type: String, default: 'Sincerely,' },
     shareToken: { type: String, unique: true, sparse: true },
     isPublic: { type: Boolean, default: false },
+    thumbnailUrl: { type: String, default: '' },
+    thumbnailGeneratedAt: { type: Date },
+    // Mirrors Resume.js's thumbnailPending exactly — see its comment for
+    // the full explanation (thumbnailService.js's fulfillIfDue).
+    thumbnailPending: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
