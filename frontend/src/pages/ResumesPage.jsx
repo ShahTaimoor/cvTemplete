@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Trash2, FileText, Copy, Mail } from 'lucide-react';
+import { Plus, Trash2, FileText, Copy, Mail, Pencil } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI } from '../services/api';
 import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import MediaCard from '../components/common/MediaCard';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem } from '../lib/motion';
@@ -21,11 +22,19 @@ const PAGE_SIZE = 9;
 // Server-generated screenshot of the resume's actual design (see
 // backend/src/services/thumbnailService.js), regenerated whenever the
 // Builder is exited. Falls back to the existing flat color-swatch treatment
-// — just sized to the same box, instead of a small corner icon — for
-// resumes that don't have one yet (brand new, or older than this feature).
-// onError swaps back to that same fallback so a broken/expired image URL
-// never renders as a broken-image icon, and also reports the break upward
-// (see onBroken) so this page can self-heal it in the background.
+// for resumes that don't have one yet (brand new, or older than this
+// feature). onError swaps back to that same fallback so a broken/expired
+// image URL never renders as a broken-image icon, and also reports the
+// break upward (see onBroken) so this page can self-heal it in the
+// background.
+//
+// Fills its container (`w-full h-full`) rather than owning its own
+// aspect-ratio box/border/rounding — MediaCard now provides that outer
+// chrome, since the thumbnail is the whole card by default in the new
+// image-first overlay layout, not a box sitting above a separate title/
+// meta/button block. All of the actual thumbnail logic below (broken
+// state, showImage check, onError/onBroken) is unchanged from before that
+// restructuring.
 //
 // `broken` is local state, so once set it would otherwise stay stuck true
 // forever even after a successful self-heal hands this component a fresh
@@ -44,7 +53,7 @@ function ResumeCardThumbnail({ resume, onBroken }) {
 
   return (
     <div
-      className="w-full aspect-[210/297] rounded-lg mb-3 overflow-hidden bg-slate-100 border border-slate-200"
+      className="w-full h-full"
       style={!showImage ? { backgroundColor: getTemplatePreset(resume.templateSlug).primary } : undefined}
       aria-hidden
     >
@@ -61,21 +70,9 @@ function ResumeCardThumbnail({ resume, onBroken }) {
   );
 }
 
-// Mirrors the real card's thumbnail + title + meta + button-row layout below.
+// Mirrors the real card's image-first-overlay shape below.
 function ResumeCardSkeleton() {
-  return (
-    <div className="app-card p-5">
-      <Skeleton shape="rounded" className="w-full aspect-[210/297] mb-3" />
-      <Skeleton shape="rounded" width="70%" height={16} className="mb-2" />
-      <Skeleton shape="rounded" width="45%" height={10} className="mb-2" />
-      <Skeleton shape="rounded" width="55%" height={10} />
-      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-        <Skeleton shape="rounded" className="flex-1 min-w-[80px]" height={38} />
-        <Skeleton shape="rounded" width={38} height={38} />
-        <Skeleton shape="rounded" width={38} height={38} />
-      </div>
-    </div>
-  );
+  return <Skeleton shape="rounded" className="w-full aspect-[210/297]" />;
 }
 
 // A resume counts as "likely mid-generation" either because it was edited
@@ -364,51 +361,27 @@ export default function ResumesPage() {
             variants={staggerContainer()}
           >
             {pageItems.map((r) => (
-              <motion.article
-                key={r._id}
-                variants={staggerItem}
-                className="app-card p-5 hover:border-brand-200 transition-colors"
-              >
-                <ResumeCardThumbnail
-                  key={thumbnailOverrides[r._id]?.thumbnailUrl ?? r.thumbnailUrl}
-                  resume={thumbnailOverrides[r._id] ? { ...r, ...thumbnailOverrides[r._id] } : r}
-                  onBroken={handleThumbnailBroken}
+              <motion.article key={r._id} variants={staggerItem}>
+                <MediaCard
+                  thumbnail={
+                    <ResumeCardThumbnail
+                      key={thumbnailOverrides[r._id]?.thumbnailUrl ?? r.thumbnailUrl}
+                      resume={thumbnailOverrides[r._id] ? { ...r, ...thumbnailOverrides[r._id] } : r}
+                      onBroken={handleThumbnailBroken}
+                    />
+                  }
+                  title={r.title}
+                  meta={[
+                    r.templateSlug?.replace(/-/g, ' '),
+                    `Updated ${new Date(r.updatedAt).toLocaleDateString()}`,
+                  ]}
+                  actions={[
+                    { icon: Pencil, label: 'Edit', to: `/builder/${r._id}`, variant: 'primary' },
+                    { icon: Copy, label: 'Duplicate', onClick: () => duplicateResume(r._id, r.title) },
+                    plan === 'premium' && { icon: Mail, label: 'Cover letter', onClick: () => newCoverLetter(r._id) },
+                    { icon: Trash2, label: 'Delete', onClick: () => deleteResume(r._id), variant: 'danger' },
+                  ].filter(Boolean)}
                 />
-                <h3 className="font-semibold text-slate-900">{r.title}</h3>
-                <p className="text-xs text-slate-500 mt-1 capitalize">{r.templateSlug?.replace(/-/g, ' ')}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Updated {new Date(r.updatedAt).toLocaleDateString()}
-                </p>
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                  <Link to={`/builder/${r._id}`} className="app-btn-primary flex-1 text-center !py-2 min-w-[80px]">
-                    Edit
-                  </Link>
-                  <button
-                    type="button"
-                    title="Duplicate"
-                    onClick={() => duplicateResume(r._id, r.title)}
-                    className="app-btn-secondary !p-2"
-                  >
-                    <MotionIcon><Copy size={18} /></MotionIcon>
-                  </button>
-                  {plan === 'premium' && (
-                    <button
-                      type="button"
-                      title="Cover letter"
-                      onClick={() => newCoverLetter(r._id)}
-                      className="app-btn-secondary !p-2 text-brand-600"
-                    >
-                      <MotionIcon><Mail size={18} /></MotionIcon>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => deleteResume(r._id)}
-                    className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
-                  >
-                    <MotionIcon><Trash2 size={18} /></MotionIcon>
-                  </button>
-                </div>
               </motion.article>
             ))}
             {!list.length && (

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
-import { Trash2, Copy, Mail } from 'lucide-react';
+import { Trash2, Copy, Mail, Pencil } from 'lucide-react';
 import { coverLetterAPI } from '../services/api';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
@@ -10,8 +10,8 @@ import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
 import { getPageNumbers } from '../utils/pagination';
-import MotionIcon from '../components/common/MotionIcon';
 import Skeleton from '../components/common/Skeleton';
+import MediaCard from '../components/common/MediaCard';
 
 const PAGE_SIZE = 9;
 
@@ -24,6 +24,9 @@ const PAGE_SIZE = 9;
 // fallback). Falls back to the same Mail-icon color swatch this page
 // already used before real thumbnails existed, for letters that don't
 // have one yet (brand new, or older than this feature).
+//
+// Only fills its container now — MediaCard (see components/common/MediaCard)
+// owns the aspect-ratio box, rounding, and border around it.
 function CoverLetterCardThumbnail({ letter, onBroken }) {
   const [broken, setBroken] = useState(false);
   const showImage = !!letter.thumbnailUrl && !broken;
@@ -36,7 +39,7 @@ function CoverLetterCardThumbnail({ letter, onBroken }) {
 
   return (
     <div
-      className="w-full aspect-[210/297] rounded-lg mb-3 overflow-hidden border border-slate-200"
+      className="w-full h-full"
       style={!showImage ? { backgroundColor: preset.primary } : undefined}
       aria-hidden
     >
@@ -57,21 +60,8 @@ function CoverLetterCardThumbnail({ letter, onBroken }) {
   );
 }
 
-// Mirrors the real card's swatch + title + meta + button-row layout below.
 function CoverLetterCardSkeleton() {
-  return (
-    <div className="app-card p-5">
-      <Skeleton shape="rounded" className="w-full aspect-[210/297] mb-3" />
-      <Skeleton shape="rounded" width="65%" height={16} className="mb-2" />
-      <Skeleton shape="rounded" width="50%" height={10} className="mb-2" />
-      <Skeleton shape="rounded" width="40%" height={10} />
-      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-        <Skeleton shape="rounded" className="flex-1 min-w-[80px]" height={38} />
-        <Skeleton shape="rounded" width={38} height={38} />
-        <Skeleton shape="rounded" width={38} height={38} />
-      </div>
-    </div>
-  );
+  return <Skeleton shape="rounded" className="w-full aspect-[210/297]" />;
 }
 
 // A cover letter counts as "likely mid-generation" either because it was
@@ -267,43 +257,26 @@ export default function CoverLettersPage() {
             variants={staggerContainer()}
           >
             {pageItems.map((c) => (
-              <motion.article
-                key={c._id}
-                variants={staggerItem}
-                className="app-card p-5 hover:border-brand-200 transition-colors"
-              >
-                <CoverLetterCardThumbnail
-                  key={thumbnailOverrides[c._id]?.thumbnailUrl ?? c.thumbnailUrl}
-                  letter={thumbnailOverrides[c._id] ? { ...c, ...thumbnailOverrides[c._id] } : c}
-                  onBroken={handleThumbnailBroken}
+              <motion.article key={c._id} variants={staggerItem}>
+                <MediaCard
+                  thumbnail={
+                    <CoverLetterCardThumbnail
+                      key={thumbnailOverrides[c._id]?.thumbnailUrl ?? c.thumbnailUrl}
+                      letter={thumbnailOverrides[c._id] ? { ...c, ...thumbnailOverrides[c._id] } : c}
+                      onBroken={handleThumbnailBroken}
+                    />
+                  }
+                  title={c.title}
+                  meta={[
+                    c.resume?.title ? `For ${c.resume.title}` : null,
+                    `Updated ${new Date(c.updatedAt).toLocaleDateString()}`,
+                  ].filter(Boolean)}
+                  actions={[
+                    { icon: Pencil, label: 'Edit', to: `/cover-letter/${c._id}`, variant: 'primary' },
+                    { icon: Copy, label: 'Duplicate', onClick: () => duplicateCoverLetter(c._id, c.title) },
+                    { icon: Trash2, label: 'Delete', onClick: () => deleteCoverLetter(c._id), variant: 'danger' },
+                  ]}
                 />
-                <h3 className="font-semibold text-slate-900 truncate">{c.title}</h3>
-                {c.resume?.title && (
-                  <p className="text-xs text-slate-500 mt-1 truncate">For {c.resume.title}</p>
-                )}
-                <p className="text-xs text-slate-400 mt-2">
-                  Updated {new Date(c.updatedAt).toLocaleDateString()}
-                </p>
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100">
-                  <Link to={`/cover-letter/${c._id}`} className="app-btn-primary flex-1 text-center !py-2 min-w-[80px]">
-                    Edit
-                  </Link>
-                  <button
-                    type="button"
-                    title="Duplicate"
-                    onClick={() => duplicateCoverLetter(c._id, c.title)}
-                    className="app-btn-secondary !p-2"
-                  >
-                    <MotionIcon><Copy size={18} /></MotionIcon>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteCoverLetter(c._id)}
-                    className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
-                  >
-                    <MotionIcon><Trash2 size={18} /></MotionIcon>
-                  </button>
-                </div>
               </motion.article>
             ))}
             {!coverLetters.length && (
