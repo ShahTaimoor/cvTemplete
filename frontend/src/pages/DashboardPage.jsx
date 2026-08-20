@@ -325,10 +325,18 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+        <motion.div
+          initial={pageFade.initial}
+          animate={pageFade.animate}
+          transition={pageFade.transition}
+          className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8"
+        >
           <div>
-            <p className="text-sm font-medium text-brand-600 mb-1">Dashboard</p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            <p className="text-sm font-semibold text-brass-ink mb-1">Dashboard</p>
+            <h1
+              className="text-2xl sm:text-3xl font-medium text-slate-900 tracking-tight"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
               Hello{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
             <p className="text-slate-600 mt-1">Manage resumes and pick templates for your next application.</p>
@@ -337,7 +345,7 @@ export default function DashboardPage() {
             <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
             New resume
           </button>
-        </div>
+        </motion.div>
 
         {!resumesLoaded || !templatesLoaded ? (
           <div className="grid sm:grid-cols-3 gap-4 mb-8">

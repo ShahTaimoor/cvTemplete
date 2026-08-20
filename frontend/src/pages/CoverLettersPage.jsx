@@ -7,7 +7,7 @@ import { coverLetterAPI } from '../services/api';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
-import { staggerContainer, staggerItem } from '../lib/motion';
+import { staggerContainer, staggerItem, pageFade } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
 import { getPageNumbers } from '../utils/pagination';
 import Skeleton from '../components/common/Skeleton';
@@ -236,11 +236,22 @@ export default function CoverLettersPage() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div ref={gridTopRef} className="mb-8">
-          <p className="text-sm font-medium text-brand-600 mb-1">My Cover Letters</p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Your cover letters</h1>
+        <motion.div
+          ref={gridTopRef}
+          initial={pageFade.initial}
+          animate={pageFade.animate}
+          transition={pageFade.transition}
+          className="mb-8"
+        >
+          <p className="text-sm font-semibold text-brass-ink mb-1">My Cover Letters</p>
+          <h1
+            className="text-2xl sm:text-3xl font-medium text-slate-900 tracking-tight"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Your cover letters
+          </h1>
           <p className="text-slate-600 mt-1">Manage, edit, and export every cover letter in one place.</p>
-        </div>
+        </motion.div>
 
         {!coverLettersLoaded ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

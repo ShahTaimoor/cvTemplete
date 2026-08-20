@@ -11,7 +11,7 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import MediaCard from '../components/common/MediaCard';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
-import { staggerContainer, staggerItem } from '../lib/motion';
+import { staggerContainer, staggerItem, pageFade } from '../lib/motion';
 import { getTemplatePreset } from '../config/templates';
 import { getPageNumbers } from '../utils/pagination';
 import MotionIcon from '../components/common/MotionIcon';
@@ -320,17 +320,28 @@ export default function ResumesPage() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <div ref={gridTopRef} className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
+        <motion.div
+          ref={gridTopRef}
+          initial={pageFade.initial}
+          animate={pageFade.animate}
+          transition={pageFade.transition}
+          className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8"
+        >
           <div>
-            <p className="text-sm font-medium text-brand-600 mb-1">My Resumes</p>
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Your resumes</h1>
+            <p className="text-sm font-semibold text-brass-ink mb-1">My Resumes</p>
+            <h1
+              className="text-2xl sm:text-3xl font-medium text-slate-900 tracking-tight"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Your resumes
+            </h1>
             <p className="text-slate-600 mt-1">Manage, edit, and export every resume in one place.</p>
           </div>
           <button type="button" onClick={() => setShowNew(!showNew)} className="app-btn-primary shrink-0">
             <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
             New resume
           </button>
-        </div>
+        </motion.div>
 
         <AnimatePresence>
           {showNew && (
