@@ -13,7 +13,16 @@ import { staggerContainer, staggerItem, pageFade, iconPopIn, DURATION, EASE } fr
 import MotionIcon from '../components/common/MotionIcon';
 import Skeleton from '../components/common/Skeleton';
 
-const ACTIVITY_PAGE_SIZE = 4;
+const DESKTOP_ACTIVITY_PAGE_SIZE = 4;
+const MOBILE_ACTIVITY_PAGE_SIZE = 1;
+// Matches Tailwind's default `sm` breakpoint (40rem/640px), already used
+// throughout this app via the `sm:` prefix — kept as a literal px value
+// here since matchMedia needs a real media-query string, not a Tailwind
+// class. 4 chips sharing one row's width only leaves room for a couple of
+// truncated characters per title on a phone screen (the actual reported
+// bug), so below this width each page holds just 1 item at full width
+// instead.
+const MOBILE_BREAKPOINT_PX = 640;
 
 // Slide direction is tracked explicitly (not inferred from old/new page
 // inside the variant) since Framer Motion's `custom` needs a plain value
@@ -27,30 +36,54 @@ const carouselVariants = {
   exit: (direction) => ({ x: direction > 0 ? -24 : 24, opacity: 0 }),
 };
 
+// matchMedia (not a resize listener) so this only re-renders on an actual
+// breakpoint crossing, not on every pixel of a drag-resize — and it fires
+// on orientation change too, since that's also just a viewport-width change
+// as far as the media query is concerned.
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT_PX
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+  return isMobile;
+}
+
 /**
  * Paginated, arrow+dot carousel for the activity chips — replaces the
- * earlier raw overflow-x-auto scroll strip. Grouped into fixed pages of
- * ACTIVITY_PAGE_SIZE so the row's height never depends on how many items
- * exist (always at most one row of up to 4 chips), and each page's chips
- * are laid out on a CSS grid sized to the page's own item count (not a
- * flat 4 always) so a shorter final page doesn't leave stretched-out empty
- * cells. No scroll affordance anywhere — arrows/dots are the only way to
- * move between pages, deliberately reading as a carousel rather than a
- * scrollable strip. View/download counts hide below `sm` (matching the
- * existing hidden-on-mobile pattern for secondary info in BuilderPage's
- * toolbar) — at 4 chips per row on a phone-width screen there isn't room
- * for icon + title + counts together, and the title is the one piece
- * that identifies which item this is, so it's what stays.
+ * earlier raw overflow-x-auto scroll strip. Grouped into fixed-size pages
+ * (4 items on desktop/tablet, 1 on mobile — see useIsMobile above) so the
+ * row's height never depends on how many items exist, and each page's
+ * chips are laid out on a CSS grid sized to the page's own item count (not
+ * always the full page size) so a shorter final page doesn't leave
+ * stretched-out empty cells. No scroll affordance anywhere — arrows/dots
+ * are the only way to move between pages, deliberately reading as a
+ * carousel rather than a scrollable strip.
  */
 function ActivityCarousel({ items }) {
+  const isMobile = useIsMobile();
+  const pageSize = isMobile ? MOBILE_ACTIVITY_PAGE_SIZE : DESKTOP_ACTIVITY_PAGE_SIZE;
   const [page, setPage] = useState(0);
   const [direction, setDirection] = useState(1);
 
   const pages = [];
-  for (let i = 0; i < items.length; i += ACTIVITY_PAGE_SIZE) {
-    pages.push(items.slice(i, i + ACTIVITY_PAGE_SIZE));
+  for (let i = 0; i < items.length; i += pageSize) {
+    pages.push(items.slice(i, i + pageSize));
   }
   const totalPages = pages.length;
+  // Crossing the mobile breakpoint changes what a "page" even means (1
+  // item vs. 4), so page indices from one layout aren't meaningful in the
+  // other — this just guards against the now-stale index pointing past
+  // the end of the freshly-recomputed `pages` array. Also covers `items`
+  // itself changing length for any other reason.
+  useEffect(() => {
+    setPage((p) => Math.max(0, Math.min(p, totalPages - 1)));
+  }, [totalPages]);
   const currentPage = pages[page] || pages[0];
 
   const goToPage = (target) => {
@@ -85,7 +118,7 @@ function ActivityCarousel({ items }) {
               animate="center"
               exit="exit"
               transition={{ duration: DURATION.base, ease: EASE }}
-              className="grid gap-1.5 sm:gap-2"
+              className="grid gap-2"
               style={{ gridTemplateColumns: `repeat(${currentPage.length}, minmax(0, 1fr))` }}
             >
               {currentPage.map((item, i) => {
@@ -96,17 +129,17 @@ function ActivityCarousel({ items }) {
                   <Link
                     key={`${item.type}-${item.id}`}
                     to={href}
-                    className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-burgundy/15 bg-white px-2 sm:px-3 py-1.5 min-w-0 hover:border-burgundy/35 transition-colors"
+                    className="flex items-center gap-2 rounded-lg border border-burgundy/15 bg-white px-3 py-1.5 min-w-0 hover:border-burgundy/35 transition-colors"
                   >
                     <TypeIcon size={12} className="text-burgundy/60 shrink-0" />
                     <span className="text-sm font-medium text-graphite truncate flex-1 min-w-0">{item.title}</span>
                     {item.views > 0 && (
-                      <span className="hidden sm:flex items-center gap-1 text-xs text-burgundy shrink-0">
+                      <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
                         <motion.span {...iconPopIn(0.05 + i * 0.05)}><Eye size={13} /></motion.span> {item.views}
                       </span>
                     )}
                     {item.downloads > 0 && (
-                      <span className="hidden sm:flex items-center gap-1 text-xs text-burgundy shrink-0">
+                      <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
                         <motion.span {...iconPopIn(0.05 + i * 0.05)}><Download size={13} /></motion.span> {item.downloads}
                       </span>
                     )}
