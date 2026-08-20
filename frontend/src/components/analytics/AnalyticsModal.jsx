@@ -12,7 +12,7 @@ import {
   Legend,
 } from 'recharts';
 import { Eye, Download, Lock, X } from 'lucide-react';
-import { resumeAPI } from '../../services/api';
+import { resumeAPI, coverLetterAPI } from '../../services/api';
 import { overlayFade, modalCard, staggerContainer, staggerItem } from '../../lib/motion';
 
 const formatTick = (dateStr) =>
@@ -30,15 +30,17 @@ const formatTooltipLabel = (dateStr) =>
     timeZone: 'UTC',
   });
 
-function LockedState() {
+function LockedState({ isCoverLetter }) {
+  const planLabel = isCoverLetter ? 'Premium plan' : 'Pro plan or higher';
+  const contentLabel = isCoverLetter ? 'cover letter' : 'resume';
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-6">
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-900/90 mb-4">
         <Lock className="text-amber-400" size={26} />
       </span>
-      <h3 className="font-semibold text-slate-900">Resume analytics requires Pro plan or higher</h3>
+      <h3 className="font-semibold text-slate-900 capitalize">{contentLabel} analytics requires {planLabel}</h3>
       <p className="text-sm text-slate-500 mt-1.5 max-w-sm">
-        See how many people view your shared resume and how often it's downloaded, with a 30-day trend.
+        See how many people view your shared {contentLabel} and how often it's downloaded, with a 30-day trend.
       </p>
       <Link
         to="/pricing"
@@ -50,7 +52,15 @@ function LockedState() {
   );
 }
 
-export default function AnalyticsModal({ resumeId, plan, onClose }) {
+// `coverLetterId` is the Cover Letter equivalent of `resumeId` — pass
+// exactly one. Cover Letters are Premium-only end to end (see
+// CoverLetterPage.jsx's own page-level gate), a strictly higher bar than
+// Resume's Pro-or-higher, so `unlocked` below still holds for both: any
+// plan that can even reach this modal for a cover letter is already
+// Premium, which satisfies the same ['pro','premium'] check.
+export default function AnalyticsModal({ resumeId, coverLetterId, plan, onClose }) {
+  const isCoverLetter = Boolean(coverLetterId);
+  const itemId = coverLetterId || resumeId;
   const unlocked = ['pro', 'premium'].includes(plan);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -69,8 +79,8 @@ export default function AnalyticsModal({ resumeId, plan, onClose }) {
   useEffect(() => {
     if (!unlocked) return;
     let cancelled = false;
-    resumeAPI
-      .analytics(resumeId)
+    const fetcher = isCoverLetter ? coverLetterAPI.analytics(itemId) : resumeAPI.analytics(itemId);
+    fetcher
       .then((res) => {
         if (!cancelled) setData(res.data);
       })
@@ -80,7 +90,7 @@ export default function AnalyticsModal({ resumeId, plan, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, [resumeId, unlocked]);
+  }, [itemId, isCoverLetter, unlocked]);
 
   return (
     <motion.div
@@ -103,9 +113,11 @@ export default function AnalyticsModal({ resumeId, plan, onClose }) {
         <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-slate-200 shrink-0">
           <div>
             <h2 id="analytics-modal-title" className="font-semibold text-slate-900">
-              Resume analytics
+              {isCoverLetter ? 'Cover letter analytics' : 'Resume analytics'}
             </h2>
-            <p className="text-sm text-slate-600 mt-0.5">Views and downloads for this resume</p>
+            <p className="text-sm text-slate-600 mt-0.5">
+              Views and downloads for this {isCoverLetter ? 'cover letter' : 'resume'}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800 shrink-0">
             <X size={20} />
@@ -113,7 +125,7 @@ export default function AnalyticsModal({ resumeId, plan, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          {!unlocked && <LockedState />}
+          {!unlocked && <LockedState isCoverLetter={isCoverLetter} />}
 
           {unlocked && error && (
             <p className="text-sm text-red-600 text-center py-12">{error}</p>

@@ -8,12 +8,13 @@ export default function CoverLetterSharePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  // Mirrors SharePage.jsx's fetchedForTokenRef guard exactly — without it,
-  // React 18 StrictMode's dev-only mount→cleanup→mount double-fires the
-  // fetch. No view-logging happens on this route (see publicRoutes.js), so
-  // this guard is purely about avoiding a redundant request, not double-
-  // counting analytics like SharePage's version — kept anyway to match the
-  // established pattern and avoid the wasted duplicate fetch.
+  // Mirrors SharePage.jsx's fetchedForTokenRef guard exactly, for exactly
+  // the same reason: the backend logs a view as a side effect of this same
+  // fetch (see GET /api/public/share/cover-letter/:token), so an unguarded
+  // effect double-fires the request under React 18 StrictMode's dev-only
+  // mount→cleanup→mount and double-counts every visit. A genuine token
+  // change (a different share link) still fetches normally, since the ref
+  // won't match the new token.
   const fetchedForTokenRef = useRef(null);
   useEffect(() => {
     if (fetchedForTokenRef.current === token) return;

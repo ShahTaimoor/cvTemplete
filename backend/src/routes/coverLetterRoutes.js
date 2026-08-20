@@ -2,12 +2,14 @@ import express from 'express';
 import CoverLetter from '../models/CoverLetter.js';
 import CoverLetterVersion from '../models/CoverLetterVersion.js';
 import Resume from '../models/Resume.js';
+import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
 import { getSampleCoverLetterPayload } from '../utils/sampleResumeData.js';
 import { buildCoverLetterDocx } from '../services/docxService.js';
 import { generateCoverLetterPdf } from '../services/coverLetterPdfService.js';
 import { exportLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { buildDailyTimeline, timelineStartDate } from '../utils/analytics.js';
 
 const router = express.Router();
 router.use(protect);
@@ -188,6 +190,11 @@ router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="cover-letter.docx"`);
   res.send(buffer);
+
+  // Fire-and-forget, mirroring resumeRoutes.js's docx/pdf routes exactly.
+  AnalyticsEvent.create({ coverLetter: letter._id, type: 'download', format: 'docx' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
 }));
 
 router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
@@ -197,6 +204,33 @@ router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${safeAttachmentFilename(letter.title)}.pdf"`);
   res.send(buffer);
+
+  AnalyticsEvent.create({ coverLetter: letter._id, type: 'download', format: 'pdf' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
+}));
+
+// Mirrors resumeRoutes.js's GET /:id/analytics exactly — no separate plan
+// check needed (requirePremium above already gates every route in this file
+// at Premium, a strictly higher bar than Resume's own Pro-or-higher check).
+router.get('/:id/analytics', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id }).select('_id');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+
+  const DAYS = 30;
+  const since = timelineStartDate(DAYS);
+
+  const [totalViews, totalDownloads, recentEvents] = await Promise.all([
+    AnalyticsEvent.countDocuments({ coverLetter: letter._id, type: 'view' }),
+    AnalyticsEvent.countDocuments({ coverLetter: letter._id, type: 'download' }),
+    AnalyticsEvent.find({ coverLetter: letter._id, createdAt: { $gte: since } }).select('type createdAt'),
+  ]);
+
+  res.json({
+    totalViews,
+    totalDownloads,
+    timeline: buildDailyTimeline(recentEvents, DAYS),
+  });
 }));
 
 export default router;

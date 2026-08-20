@@ -18,6 +18,7 @@ const router = express.Router();
 // same link seconds apart), only an accidental immediate repeat of the
 // exact same request.
 const recentResumeViews = new Map(); // resumeId -> last-logged timestamp
+const recentCoverLetterViews = new Map(); // coverLetterId -> last-logged timestamp
 const VIEW_DEDUPE_MS = 2000;
 
 router.get('/share/:token', asyncHandler(async (req, res) => {
@@ -46,9 +47,7 @@ router.get('/share/:token', asyncHandler(async (req, res) => {
 // Deliberately a distinct path (not /share/:token) rather than sharing
 // Resume's route — Resume and CoverLetter each enforce shareToken
 // uniqueness independently (separate collections), so a single shared path
-// could ambiguously match either model's token. No analytics logging here
-// yet: this is plumbing only, view-tracking is a deliberate follow-up once
-// real share links exist to generate data from.
+// could ambiguously match either model's token.
 router.get('/share/cover-letter/:token', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({
     shareToken: req.params.token,
@@ -58,6 +57,18 @@ router.get('/share/cover-letter/:token', asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Cover letter not found or not shared' });
   }
   res.json({ letter });
+
+  // Fire-and-forget, mirroring the Resume route above exactly (own dedupe
+  // map, since the two content types must never share one dedupe window).
+  const letterId = String(letter._id);
+  const now = Date.now();
+  const lastLoggedAt = recentCoverLetterViews.get(letterId);
+  if (!lastLoggedAt || now - lastLoggedAt > VIEW_DEDUPE_MS) {
+    recentCoverLetterViews.set(letterId, now);
+    AnalyticsEvent.create({ coverLetter: letter._id, type: 'view' }).catch((err) =>
+      console.error('Analytics view tracking failed:', err)
+    );
+  }
 }));
 
 export default router;

@@ -52,7 +52,14 @@ router.get('/', asyncHandler(async (req, res) => {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const VIEWS_WINDOW_DAYS = 7;
 const STALE_THRESHOLD_DAYS = 30;
-const MAX_ACTIVITY_ITEMS = 4;
+// Reserved per content type (not a single shared cap) — see the
+// reserve-then-backfill logic in dashboard-insight below. A shared cap
+// combined with resumes always sorting ahead of cover letters on ties
+// used to let a user with 4+ active resumes silently starve out cover
+// letter activity from the list even when it was real and confirmed via
+// the per-item analytics endpoint.
+const RESUME_ACTIVITY_SLOTS = 6;
+const COVER_LETTER_ACTIVITY_SLOTS = 6;
 
 // Registered ahead of GET /:id — as a literal path with no params, it would
 // otherwise be swallowed by that route (Express would match "dashboard-
@@ -60,47 +67,90 @@ const MAX_ACTIVITY_ITEMS = 4;
 //
 // One real, data-backed insight per Dashboard visit, gated the same as the
 // existing per-resume analytics endpoint below. Pro accounts can never
-// generate view events (Share links are Premium-only), so their downloads
-// still surface here even though views never will — no special-casing
-// needed, the aggregate just naturally has zero view events for them.
+// generate Cover Letter activity at all (that feature is Premium-only) and
+// can never generate view events on resumes either (Share links are also
+// Premium-only) — their downloads still surface here even though those
+// other two never will. No special-casing needed for either: the queries
+// below just naturally return empty for content/events a Pro account can't
+// have.
 router.get('/dashboard-insight', asyncHandler(async (req, res) => {
   const plan = req.user.subscription?.plan || 'free';
   if (!['pro', 'premium'].includes(plan)) {
     return res.status(403).json({ message: 'Dashboard insights require Pro plan or higher' });
   }
 
-  const resumes = await Resume.find({ user: req.user._id }).select('_id title updatedAt');
-  if (!resumes.length) return res.json({ type: 'none' });
+  const [resumes, coverLetters] = await Promise.all([
+    Resume.find({ user: req.user._id }).select('_id title updatedAt'),
+    CoverLetter.find({ user: req.user._id }).select('_id title updatedAt'),
+  ]);
+  if (!resumes.length && !coverLetters.length) return res.json({ type: 'none' });
 
-  // Every resume with real activity this week, not just the single busiest
-  // one — a resume that isn't the top performer can still have genuine
-  // views/downloads worth surfacing, and hiding those undersells real
-  // engagement the user should see.
+  // Every resume/cover letter with real activity this week, not just the
+  // single busiest one — content that isn't the top performer can still
+  // have genuine views/downloads worth surfacing, and hiding those
+  // undersells real engagement the user should see. Two separate
+  // aggregations (grouped on different AnalyticsEvent fields) merged and
+  // re-ranked together, rather than one combined query, since `resume` and
+  // `coverLetter` are distinct fields on the event, not a shared key.
   const since = new Date(Date.now() - VIEWS_WINDOW_DAYS * DAY_MS);
-  const activity = await AnalyticsEvent.aggregate([
-    { $match: { resume: { $in: resumes.map((r) => r._id) }, type: { $in: ['view', 'download'] }, createdAt: { $gte: since } } },
-    {
-      $group: {
-        _id: '$resume',
-        views: { $sum: { $cond: [{ $eq: ['$type', 'view'] }, 1, 0] } },
-        downloads: { $sum: { $cond: [{ $eq: ['$type', 'download'] }, 1, 0] } },
+  const activityByField = (field, ids) =>
+    AnalyticsEvent.aggregate([
+      { $match: { [field]: { $in: ids }, type: { $in: ['view', 'download'] }, createdAt: { $gte: since } } },
+      {
+        $group: {
+          _id: `$${field}`,
+          views: { $sum: { $cond: [{ $eq: ['$type', 'view'] }, 1, 0] } },
+          downloads: { $sum: { $cond: [{ $eq: ['$type', 'download'] }, 1, 0] } },
+        },
       },
-    },
-    { $addFields: { total: { $add: ['$views', '$downloads'] } } },
-    { $sort: { total: -1 } },
-    { $limit: MAX_ACTIVITY_ITEMS },
+    ]);
+  const [resumeActivity, coverLetterActivity] = await Promise.all([
+    resumes.length ? activityByField('resume', resumes.map((r) => r._id)) : [],
+    coverLetters.length ? activityByField('coverLetter', coverLetters.map((c) => c._id)) : [],
   ]);
 
-  if (activity.length) {
-    const items = activity.map((a) => {
-      const resume = resumes.find((r) => r._id.equals(a._id));
-      return {
-        resumeId: a._id,
-        resumeTitle: resume?.title || 'Untitled Resume',
-        views: a.views,
-        downloads: a.downloads,
-      };
-    });
+  // Ranked independently per type (not merged-then-capped) so neither type
+  // can structurally crowd the other out of its own reserved slots. Each
+  // type gets its own top-N reservation; if a type doesn't have enough real
+  // activity to fill its reservation, the leftover slots backfill from the
+  // OTHER type's remaining ranked items (beyond its own reservation) rather
+  // than sitting empty or being handed back unused — real activity from
+  // either type always fills the list before it's cut short.
+  const rankByTotal = (activity, type, contentDocs, untitledFallback) =>
+    activity
+      .map((a) => {
+        const doc = contentDocs.find((c) => c._id.equals(a._id));
+        return {
+          type,
+          id: a._id,
+          title: doc?.title || untitledFallback,
+          views: a.views,
+          downloads: a.downloads,
+          total: a.views + a.downloads,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+
+  const resumeRanked = rankByTotal(resumeActivity, 'resume', resumes, 'Untitled Resume');
+  const coverLetterRanked = rankByTotal(coverLetterActivity, 'coverLetter', coverLetters, 'Untitled Cover Letter');
+
+  const resumeTake = resumeRanked.slice(0, RESUME_ACTIVITY_SLOTS);
+  const coverLetterTake = coverLetterRanked.slice(0, COVER_LETTER_ACTIVITY_SLOTS);
+  const unusedResumeSlots = RESUME_ACTIVITY_SLOTS - resumeTake.length;
+  const unusedCoverLetterSlots = COVER_LETTER_ACTIVITY_SLOTS - coverLetterTake.length;
+
+  const items = [
+    ...resumeTake,
+    ...coverLetterTake,
+    // Backfill: unused reserved slots on one side pull from the other
+    // side's remaining ranked items (past its own reservation cut).
+    ...coverLetterRanked.slice(COVER_LETTER_ACTIVITY_SLOTS, COVER_LETTER_ACTIVITY_SLOTS + unusedResumeSlots),
+    ...resumeRanked.slice(RESUME_ACTIVITY_SLOTS, RESUME_ACTIVITY_SLOTS + unusedCoverLetterSlots),
+  ]
+    .sort((a, b) => b.total - a.total)
+    .map(({ total, ...item }) => item);
+
+  if (items.length) {
     return res.json({ type: 'activity', items });
   }
 
@@ -111,14 +161,17 @@ router.get('/dashboard-insight', asyncHandler(async (req, res) => {
   // its actual content is old. Acceptable for a soft, best-effort nudge like
   // this; a true "content last edited" signal would need its own field.
   const staleThreshold = new Date(Date.now() - STALE_THRESHOLD_DAYS * DAY_MS);
-  const staleCandidates = resumes
-    .filter((r) => r.updatedAt <= staleThreshold)
+  const staleCandidates = [
+    ...resumes.map((r) => ({ type: 'resume', title: r.title, updatedAt: r.updatedAt })),
+    ...coverLetters.map((c) => ({ type: 'coverLetter', title: c.title, updatedAt: c.updatedAt })),
+  ]
+    .filter((c) => c.updatedAt <= staleThreshold)
     .sort((a, b) => a.updatedAt - b.updatedAt);
 
   if (staleCandidates.length) {
     const stalest = staleCandidates[0];
     const daysSinceUpdate = Math.floor((Date.now() - stalest.updatedAt.getTime()) / DAY_MS);
-    return res.json({ type: 'stale', resumeTitle: stalest.title, daysSinceUpdate });
+    return res.json({ type: 'stale', title: stalest.title, daysSinceUpdate });
   }
 
   res.json({ type: 'none' });

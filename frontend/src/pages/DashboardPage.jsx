@@ -2,16 +2,152 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, FileText, Crown, LayoutTemplate, Eye, Clock, Download, TrendingUp } from 'lucide-react';
+import { Plus, FileText, Crown, LayoutTemplate, Eye, Clock, Download, TrendingUp, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI } from '../services/api';
 import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useToast } from '../hooks/useToast';
-import { staggerContainer, staggerItem, pageFade, iconPopIn } from '../lib/motion';
+import { staggerContainer, staggerItem, pageFade, iconPopIn, DURATION, EASE } from '../lib/motion';
 import MotionIcon from '../components/common/MotionIcon';
 import Skeleton from '../components/common/Skeleton';
+
+const ACTIVITY_PAGE_SIZE = 4;
+
+// Slide direction is tracked explicitly (not inferred from old/new page
+// inside the variant) since Framer Motion's `custom` needs a plain value
+// available to both the entering and exiting element at the moment each is
+// evaluated — arrows always move ±1, but a dot click can jump several pages
+// at once, so direction is resolved once in `goToPage` from the actual
+// page delta, not assumed from which control was used.
+const carouselVariants = {
+  enter: (direction) => ({ x: direction > 0 ? 24 : -24, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction) => ({ x: direction > 0 ? -24 : 24, opacity: 0 }),
+};
+
+/**
+ * Paginated, arrow+dot carousel for the activity chips — replaces the
+ * earlier raw overflow-x-auto scroll strip. Grouped into fixed pages of
+ * ACTIVITY_PAGE_SIZE so the row's height never depends on how many items
+ * exist (always at most one row of up to 4 chips), and each page's chips
+ * are laid out on a CSS grid sized to the page's own item count (not a
+ * flat 4 always) so a shorter final page doesn't leave stretched-out empty
+ * cells. No scroll affordance anywhere — arrows/dots are the only way to
+ * move between pages, deliberately reading as a carousel rather than a
+ * scrollable strip. View/download counts hide below `sm` (matching the
+ * existing hidden-on-mobile pattern for secondary info in BuilderPage's
+ * toolbar) — at 4 chips per row on a phone-width screen there isn't room
+ * for icon + title + counts together, and the title is the one piece
+ * that identifies which item this is, so it's what stays.
+ */
+function ActivityCarousel({ items }) {
+  const [page, setPage] = useState(0);
+  const [direction, setDirection] = useState(1);
+
+  const pages = [];
+  for (let i = 0; i < items.length; i += ACTIVITY_PAGE_SIZE) {
+    pages.push(items.slice(i, i + ACTIVITY_PAGE_SIZE));
+  }
+  const totalPages = pages.length;
+  const currentPage = pages[page] || pages[0];
+
+  const goToPage = (target) => {
+    const clamped = Math.max(0, Math.min(totalPages - 1, target));
+    if (clamped === page) return;
+    setDirection(clamped > page ? 1 : -1);
+    setPage(clamped);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-1">
+        {totalPages > 1 && (
+          <button
+            type="button"
+            onClick={() => goToPage(page - 1)}
+            disabled={page === 0}
+            aria-label="Previous items"
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-burgundy hover:bg-burgundy/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        )}
+
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+            <motion.div
+              key={page}
+              custom={direction}
+              variants={carouselVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: DURATION.base, ease: EASE }}
+              className="grid gap-1.5 sm:gap-2"
+              style={{ gridTemplateColumns: `repeat(${currentPage.length}, minmax(0, 1fr))` }}
+            >
+              {currentPage.map((item, i) => {
+                const isCoverLetter = item.type === 'coverLetter';
+                const TypeIcon = isCoverLetter ? Mail : FileText;
+                const href = isCoverLetter ? `/cover-letter/${item.id}` : `/builder/${item.id}`;
+                return (
+                  <Link
+                    key={`${item.type}-${item.id}`}
+                    to={href}
+                    className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-burgundy/15 bg-white px-2 sm:px-3 py-1.5 min-w-0 hover:border-burgundy/35 transition-colors"
+                  >
+                    <TypeIcon size={12} className="text-burgundy/60 shrink-0" />
+                    <span className="text-sm font-medium text-graphite truncate flex-1 min-w-0">{item.title}</span>
+                    {item.views > 0 && (
+                      <span className="hidden sm:flex items-center gap-1 text-xs text-burgundy shrink-0">
+                        <motion.span {...iconPopIn(0.05 + i * 0.05)}><Eye size={13} /></motion.span> {item.views}
+                      </span>
+                    )}
+                    {item.downloads > 0 && (
+                      <span className="hidden sm:flex items-center gap-1 text-xs text-burgundy shrink-0">
+                        <motion.span {...iconPopIn(0.05 + i * 0.05)}><Download size={13} /></motion.span> {item.downloads}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {totalPages > 1 && (
+          <button
+            type="button"
+            onClick={() => goToPage(page + 1)}
+            disabled={page === totalPages - 1}
+            aria-label="Next items"
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-burgundy hover:bg-burgundy/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={16} />
+          </button>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1.5 mt-2">
+          {pages.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goToPage(i)}
+              aria-label={`Go to page ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all ${
+                i === page ? 'w-4 bg-burgundy' : 'w-1.5 bg-burgundy/25 hover:bg-burgundy/45'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // One real, data-backed nudge for Pro/Premium accounts (see GET
 // /resumes/dashboard-insight) — never a generic filler. Renders nothing at
@@ -19,13 +155,18 @@ import Skeleton from '../components/common/Skeleton';
 // brand's reserved Pro/Premium-indicator accent (see index.css), matching
 // how it's already used for the Premium plan card on Pricing.
 //
-// 'activity' shows every resume with real views/downloads this week (not
-// just the single busiest one) as a row of compact chips — flex-wrap so a
-// handful of active resumes wraps to multiple lines on narrow screens
-// instead of overflowing or needing a scroll affordance. 'stale' is a
-// simpler, single-line fallback for when nothing happened this week at
-// all — a different, gentler kind of nudge, so it keeps its own layout
-// rather than being forced into the chip treatment.
+// 'activity' shows every resume AND cover letter with real views/downloads
+// this week (not just the single busiest item, and not just Resumes — see
+// GET /resumes/dashboard-insight, which now merges both content types, up
+// to 6 of each) as a paginated, arrow+dot carousel (see ActivityCarousel
+// above) rather than a scrollable strip — grouped into fixed pages so this
+// section's height never depends on item count. Each chip is a Link to its
+// item's actual edit page (Builder for resumes, the Cover Letter editor
+// for cover letters) — the small leading icon disambiguates the two types
+// at a glance, since a title alone can't. 'stale' is a simpler, single-
+// line fallback for when nothing happened this week at all — a different,
+// gentler kind of nudge, so it keeps its own layout rather than being
+// forced into the chip treatment.
 function InsightBanner({ insight }) {
   if (!insight || insight.type === 'none') return null;
 
@@ -43,26 +184,7 @@ function InsightBanner({ insight }) {
           </span>
           <p className="text-xs font-semibold uppercase tracking-wide text-burgundy">This week's activity</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {insight.items.map((item, i) => (
-            <div
-              key={item.resumeId}
-              className="flex items-center gap-2.5 rounded-lg border border-burgundy/15 bg-white px-3 py-1.5 max-w-full"
-            >
-              <span className="text-sm font-medium text-graphite truncate max-w-[160px]">{item.resumeTitle}</span>
-              {item.views > 0 && (
-                <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
-                  <motion.span {...iconPopIn(0.15 + i * 0.05)}><Eye size={13} /></motion.span> {item.views}
-                </span>
-              )}
-              {item.downloads > 0 && (
-                <span className="flex items-center gap-1 text-xs text-burgundy shrink-0">
-                  <motion.span {...iconPopIn(0.15 + i * 0.05)}><Download size={13} /></motion.span> {item.downloads}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+        <ActivityCarousel items={insight.items} />
       </motion.div>
     );
   }
@@ -78,7 +200,7 @@ function InsightBanner({ insight }) {
         <Clock size={18} />
       </span>
       <p className="text-sm font-medium text-graphite">
-        It's been {insight.daysSinceUpdate} days since you updated {insight.resumeTitle}
+        It's been {insight.daysSinceUpdate} days since you updated {insight.title}
       </p>
     </motion.div>
   );
@@ -107,9 +229,9 @@ function InsightBannerSkeleton() {
         <Skeleton shape="rounded" width={28} height={28} />
         <Skeleton shape="rounded" width={150} height={10} />
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Skeleton shape="rounded" width={150} height={32} />
-        <Skeleton shape="rounded" width={130} height={32} />
+      <div className="flex gap-2">
+        <Skeleton shape="rounded" width={150} height={32} className="shrink-0" />
+        <Skeleton shape="rounded" width={130} height={32} className="shrink-0" />
       </div>
     </div>
   );

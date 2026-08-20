@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { AlertCircle, CheckCircle, Download, History, Share2, Trash2 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { AlertCircle, CheckCircle, Download, History, LineChart, Share2, Trash2 } from 'lucide-react';
 import { coverLetterAPI, downloadBlob } from '../services/api';
 import CoverLetterPreview from '../components/coverLetter/CoverLetterPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import MotionIcon from '../components/common/MotionIcon';
 import Skeleton from '../components/common/Skeleton';
+import AnalyticsModal from '../components/analytics/AnalyticsModal';
 import { useConfirm } from '../hooks/useConfirm';
 import { useToast } from '../hooks/useToast';
 import { buildCoverLetterSavePayload, useCoverLetterAutoSave } from '../hooks/useCoverLetterAutoSave';
@@ -85,6 +87,7 @@ export default function CoverLetterPage() {
   const [exporting, setExporting] = useState(false);
   const [versions, setVersions] = useState([]);
   const [showVersions, setShowVersions] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   useEffect(() => {
     if (plan !== 'premium') return;
@@ -305,6 +308,14 @@ export default function CoverLetterPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setShowAnalytics(true)}
+                title="Analytics"
+                className="app-btn-secondary !p-2"
+              >
+                <MotionIcon><LineChart size={14} /></MotionIcon>
+              </button>
+              <button
+                type="button"
                 onClick={deleteLetter}
                 title="Delete"
                 className="app-btn-secondary !p-2 text-red-600 hover:bg-red-50 hover:border-red-200"
@@ -392,6 +403,12 @@ export default function CoverLetterPage() {
         </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showAnalytics && (
+          <AnalyticsModal coverLetterId={id} plan={plan} onClose={() => setShowAnalytics(false)} />
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
