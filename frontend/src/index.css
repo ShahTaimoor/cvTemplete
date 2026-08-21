@@ -60,6 +60,35 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Brand scrollbar, applied globally. scrollbar-width/-color are inherited
+   properties, so setting them once on :root covers every scrollable
+   element in the app; the WebKit pseudo-elements below are NOT inherited
+   and only ever target the element they're written against, so they need
+   the universal selector to reach every scrollable panel the same way
+   (Dashboard, the Builder's long form, modals, etc.), not just the page. */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-300) var(--color-mist);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-mist);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-brand-300);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brass);
+}
+
 .resume-preview-root {
   --resume-primary: #2563eb;
   --resume-secondary: #1e40af;
