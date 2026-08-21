@@ -140,7 +140,7 @@ export default function PricingPage() {
     return (
       <div className="bg-slate-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
-          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14 space-y-4">
+          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-14 space-y-4 rounded-2xl border border-slate-200 bg-white p-8 sm:p-10">
             <Skeleton shape="rounded" width={120} height={26} className="mx-auto" />
             <Skeleton shape="rounded" width="60%" height={40} className="mx-auto" />
             <Skeleton shape="rounded" width="80%" height={20} className="mx-auto" />

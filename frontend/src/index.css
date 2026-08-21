@@ -51,6 +51,27 @@
   --color-slate-900: #0f172a;
   --color-white: #ffffff;
   --color-black: #000000;
+
+  /* Skeleton loading shimmer (see components/common/Skeleton.jsx) — a plain
+     CSS animation rather than a Framer Motion `animate` loop specifically
+     because it has to keep running unattended for as long as a page takes
+     to load, including the moment it mounts (a Skeleton is typically the
+     very first thing a route paints). A Framer Motion keyframe animation
+     mounting concurrently with an ancestor's own in-flight transition (e.g.
+     the app-wide page-enter fade in App.jsx's PageTransition, which every
+     route — including the very first paint of a still-loading page — sits
+     inside) was observed silently dropping its `repeat: Infinity` and
+     freezing after exactly one cycle. A CSS animation has no such
+     dependency on React/Framer Motion's render or transition lifecycle.
+     Translate values are in the shimmer band's own percentage terms (its
+     div is w-1/2 of the skeleton block), matching the -100%/200% span the
+     Framer Motion version used. */
+  --animate-shimmer: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
 }
 
 body {
