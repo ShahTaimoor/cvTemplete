@@ -6,7 +6,6 @@ export const loginUser = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const { data } = await authAPI.login(credentials);
-      localStorage.setItem('token', data.token);
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Login failed');
@@ -19,7 +18,6 @@ export const registerUser = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const { data } = await authAPI.register(payload);
-      localStorage.setItem('token', data.token);
       return data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Registration failed');
@@ -32,8 +30,16 @@ export const fetchMe = createAsyncThunk('auth/me', async (_, { rejectWithValue }
     const { data } = await authAPI.me();
     return data;
   } catch {
-    localStorage.removeItem('token');
     return rejectWithValue('Session expired');
+  }
+});
+
+export const logoutUser = createAsyncThunk('auth/logout', async () => {
+  try {
+    await authAPI.logout();
+  } catch {
+    // Clear local state regardless — a failed logout request shouldn't
+    // leave the user stuck looking "logged in" on this device.
   }
 });
 
@@ -41,16 +47,16 @@ const authSlice = createSlice({
   name: 'auth',
   initialState: {
     user: null,
-    token: localStorage.getItem('token'),
     loading: false,
     error: null,
+    // The auth cookie is httpOnly — this client can never read it directly,
+    // so "logged in" is determined entirely by whether /me succeeds.
+    // authChecked tracks whether that initial app-boot check has settled
+    // (success or failure), so routes can wait for a real answer instead
+    // of treating "haven't checked yet" as "logged out".
+    authChecked: false,
   },
   reducers: {
-    logout: (state) => {
-      state.user = null;
-      state.token = null;
-      localStorage.removeItem('token');
-    },
     clearError: (state) => {
       state.error = null;
     },
@@ -61,20 +67,22 @@ const authSlice = createSlice({
       .addCase(loginUser.fulfilled, (s, a) => {
         s.loading = false;
         s.user = a.payload;
-        s.token = a.payload.token;
+        s.authChecked = true;
       })
       .addCase(loginUser.rejected, (s, a) => { s.loading = false; s.error = a.payload; })
       .addCase(registerUser.pending, (s) => { s.loading = true; s.error = null; })
       .addCase(registerUser.fulfilled, (s, a) => {
         s.loading = false;
         s.user = a.payload;
-        s.token = a.payload.token;
+        s.authChecked = true;
       })
       .addCase(registerUser.rejected, (s, a) => { s.loading = false; s.error = a.payload; })
-      .addCase(fetchMe.fulfilled, (s, a) => { s.user = a.payload; })
-      .addCase(fetchMe.rejected, (s) => { s.user = null; s.token = null; });
+      .addCase(fetchMe.fulfilled, (s, a) => { s.user = a.payload; s.authChecked = true; })
+      .addCase(fetchMe.rejected, (s) => { s.user = null; s.authChecked = true; })
+      .addCase(logoutUser.fulfilled, (s) => { s.user = null; })
+      .addCase(logoutUser.rejected, (s) => { s.user = null; });
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { clearError } = authSlice.actions;
 export default authSlice.reducer;

@@ -84,10 +84,16 @@ export const getSampleCoverLetterPayload = () => ({
   companyAddress: 'Bangalore, Karnataka',
   date: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
   salutation: 'Dear Hiring Manager,',
-  body: `I am writing to express my strong interest in the Senior Software Engineer position at TechNova Solutions. With over six years of experience building scalable MERN applications and leading cross-functional teams, I am confident I can contribute immediately to your engineering goals.
+  // Deliberately written as fill-in-the-blank starter text (bracketed
+  // placeholders), not a fabricated-but-specific narrative — the personal
+  // info above gets correctly overwritten with the linked resume's real
+  // data on creation (see coverLetterRoutes.js), but this body doesn't, so
+  // it must read as obviously unfinished rather than as someone else's
+  // real, ready-to-send cover letter that just happens to still be here.
+  body: `I am writing to express my interest in the [Job Title] position at [Company Name]. With my background in [your field or years of experience], I believe I would be a strong fit for this role and this team.
 
-In my current role, I spearheaded a microservices migration that reduced deployment cycles by 40% and improved system reliability. I am particularly drawn to TechNova's focus on innovation and would welcome the opportunity to bring my expertise in React, Node.js, and cloud architecture to your team.
+[Add a sentence or two here about a specific achievement, skill, or project that's relevant to this position.]
 
-Thank you for considering my application. I look forward to discussing how my background aligns with your needs.`,
+Thank you for considering my application. I look forward to the opportunity to discuss how my experience aligns with your needs.`,
   closing: 'Sincerely,',
 });

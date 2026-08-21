@@ -1,11 +1,13 @@
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initSentry, captureException, setupExpressErrorHandler } from './config/sentry.js';
 import { connectDB } from './config/db.js';
 import { securityMiddleware, apiLimiter } from './middleware/security.js';
+import { doubleCsrfProtection, generateCsrfToken } from './config/csrf.js';
 import authRoutes from './routes/authRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
@@ -20,15 +22,42 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Defense-in-depth: asyncHandler (see routes/*) forwards route-level errors to
+// the error middleware below, but this catches anything unexpected that gets
+// missed (e.g. an error thrown outside the request cycle) so the process
+// logs and survives instead of crashing the whole app for every user.
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  console.error('Unhandled promise rejection:', err);
+  captureException(err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  captureException(err);
+});
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(securityMiddleware);
 app.use('/api', apiLimiter);
+// Ensures every /api response carries a valid CSRF cookie — including GET
+// requests and requests made before login — so the frontend always has a
+// token in hand by the time it needs to submit a state-changing request.
+// Reuses an existing valid cookie rather than rotating it on every call.
+app.use('/api', (req, res, next) => {
+  generateCsrfToken(req, res);
+  next();
+});
+// Validates the x-csrf-token header against the cookie for POST/PUT/PATCH/
+// DELETE; GET/HEAD/OPTIONS pass through untouched (csrf-csrf's default).
+app.use('/api', doubleCsrfProtection);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
@@ -47,18 +76,36 @@ setupExpressErrorHandler(app);
 app.use((err, _req, res, _next) => {
   console.error(err);
   captureException(err);
-  res.status(500).json({ message: err.message || 'Server error' });
+
+  // Malformed input (e.g. an invalid ObjectId in a :id param) is a client
+  // error, not a server fault — and the raw CastError message exposes
+  // internal model/path names, so give it a clean 400 instead of a 500.
+  if (err.name === 'CastError') {
+    return res.status(400).json({ message: 'Invalid ID format' });
+  }
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ message: err.message });
+  }
+
+  res.status(err.statusCode || 500).json({ message: err.message || 'Server error' });
 });
 
 const PORT = process.env.PORT || 5000;
 
 await initSentry();
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error('DB connection failed:', err.message);
-    process.exit(1);
-  });
+// Listening no longer waits on the DB connection settling first — against
+// the Atlas cluster this app uses, that can take anywhere from a few
+// seconds to 10+ seconds, during which the port would otherwise not be
+// listening at all (surfaced to the frontend as a 502 through Vite's dev
+// proxy, or a connection failure in production, for any request racing
+// startup). Mongoose queues queries issued before the connection is ready
+// and flushes them once it connects (see bufferTimeoutMS in config/db.js),
+// so opening the port immediately is safe — a request that arrives before
+// Mongo is up just waits briefly instead of failing outright.
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+connectDB().catch((err) => {
+  console.error('DB connection failed:', err.message);
+  process.exit(1);
+});

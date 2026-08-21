@@ -1,14 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Search, X, Globe } from 'lucide-react';
 import {
   TEMPLATE_FILTERS,
   COUNTRY_FILTERS,
   REGION_FILTERS,
+  PLAN_FILTERS,
   filterTemplates,
 } from '../../config/templateFilters';
 import { withTemplateSlug } from '../../data/sampleResume';
-import TemplateCard from '../templates/TemplateCard';
+import TemplateCard, { TemplateCardSkeleton } from '../templates/TemplateCard';
 import ResumePreview from '../resume/ResumePreview';
+import { staggerContainer, staggerItem } from '../../lib/motion';
+import { getPageNumbers } from '../../utils/pagination';
+
+const SKELETON_CARD_COUNT = 8;
+
+const PAGE_SIZE = 24;
 
 export default function TemplateGallery({
   templates,
@@ -16,18 +24,37 @@ export default function TemplateGallery({
   onSelect,
   compact = false,
   totalCount,
+  loading = false,
 }) {
   const [filter, setFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
   const [regionFilter, setRegionFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [previewSlug, setPreviewSlug] = useState(null);
   const [showCountries, setShowCountries] = useState(false);
+  const [page, setPage] = useState(1);
+  const gridTopRef = useRef(null);
 
   const filtered = useMemo(
-    () => filterTemplates(templates, filter, search, countryFilter, regionFilter),
-    [templates, filter, search, countryFilter, regionFilter]
+    () => filterTemplates(templates, filter, search, countryFilter, regionFilter, planFilter),
+    [templates, filter, search, countryFilter, regionFilter, planFilter]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, countryFilter, regionFilter, planFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    gridTopRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [currentPage]);
+
+  const rangeStart = filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, filtered.length);
+  const pageItems = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const previewTemplate = templates.find((t) => t.slug === previewSlug);
   const allCount = totalCount ?? templates.length;
@@ -36,6 +63,7 @@ export default function TemplateGallery({
     filter !== 'all' ? TEMPLATE_FILTERS.find((f) => f.id === filter)?.label : null,
     countryFilter !== 'all' ? COUNTRY_FILTERS.find((f) => f.id === countryFilter)?.label : null,
     regionFilter !== 'all' ? REGION_FILTERS.find((f) => f.id === regionFilter)?.label : null,
+    planFilter !== 'all' ? PLAN_FILTERS.find((f) => f.id === planFilter)?.label : null,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -133,46 +161,122 @@ export default function TemplateGallery({
         ))}
       </div>
 
-      <p className="text-xs text-slate-500 mb-3">
-        Showing {filtered.length} of {allCount} templates
-        {activeLabel ? ` (${activeLabel})` : ''}
-        {!compact && ' — click Preview for sample data'}
-      </p>
-
-      {filtered.length === 0 && (
-        <p className="text-sm text-slate-500 py-8 text-center">
-          No templates match. Try{' '}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {PLAN_FILTERS.map((f) => (
           <button
+            key={f.id}
             type="button"
-            className="text-brand-600 font-medium"
-            onClick={() => {
-              setFilter('all');
-              setCountryFilter('all');
-              setRegionFilter('all');
-              setSearch('');
-            }}
+            onClick={() => setPlanFilter(f.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+              planFilter === f.id
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
           >
-            reset filters
+            {f.label}
           </button>
-        </p>
-      )}
-
-      <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
-        {filtered.map((t) => (
-          <div key={t.slug || t._id} className="space-y-2">
-            <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
-            {!compact && (
-              <button
-                type="button"
-                onClick={() => setPreviewSlug(t.slug)}
-                className="w-full text-xs py-1 text-slate-500 hover:text-brand-600 font-medium"
-              >
-                Preview with sample data
-              </button>
-            )}
-          </div>
         ))}
       </div>
+
+      {loading ? (
+        <div className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}>
+          {Array.from({ length: SKELETON_CARD_COUNT }).map((_, i) => (
+            <TemplateCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <p ref={gridTopRef} className="text-xs text-slate-500 mb-3">
+            Showing {rangeStart}–{rangeEnd} of {filtered.length} templates
+            {filtered.length !== allCount ? ` (${allCount} total)` : ''}
+            {activeLabel ? ` · ${activeLabel}` : ''}
+            {!compact && ' — click Preview for sample data'}
+          </p>
+
+          {filtered.length === 0 && (
+            <p className="text-sm text-slate-500 py-8 text-center">
+              No templates match. Try{' '}
+              <button
+                type="button"
+                className="text-brand-600 font-medium"
+                onClick={() => {
+                  setFilter('all');
+                  setCountryFilter('all');
+                  setRegionFilter('all');
+                  setPlanFilter('all');
+                  setSearch('');
+                }}
+              >
+                reset filters
+              </button>
+            </p>
+          )}
+
+          <motion.div
+            key={currentPage}
+            className={`grid gap-3 ${compact ? 'grid-cols-1 sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-4'}`}
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer(0.02)}
+          >
+            {pageItems.map((t) => (
+              <motion.div key={t.slug || t._id} variants={staggerItem} className="space-y-2">
+                <TemplateCard template={t} selected={selectedSlug === t.slug} onSelect={onSelect} />
+                {!compact && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSlug(t.slug)}
+                    className="w-full text-xs py-1 text-slate-500 hover:text-brand-600 font-medium"
+                  >
+                    Preview with sample data
+                  </button>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center flex-wrap gap-1.5 mt-6">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+              {getPageNumbers(currentPage, totalPages).map((n, i) =>
+                n === '…' ? (
+                  <span key={`ellipsis-${i}`} className="px-1.5 text-xs text-slate-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPage(n)}
+                    className={`min-w-[32px] px-2 py-1.5 rounded-lg text-xs font-medium border ${
+                      n === currentPage
+                        ? 'bg-brand-600 text-white border-brand-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
 
       {previewSlug && previewTemplate && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">

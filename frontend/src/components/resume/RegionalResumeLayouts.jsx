@@ -1,4 +1,4 @@
-import { Sections, SkillBars, getContacts, resumeWithoutSkills } from './resumeSections';
+import { Sections, SkillBars, getContacts, getContactEntries, resumeWithoutSkills } from './resumeSections';
 
 const RegionalHeader = ({ style, p, showPhoto, docTitle, centered }) => (
   <div className={`mb-5 pb-3 border-b-2 ${centered ? 'text-center' : ''}`} style={{ borderColor: style.primary }}>
@@ -60,7 +60,7 @@ export const EUCVLayout = ({ resume, style }) => {
       <div className="flex">
         <aside className="w-[32%] shrink-0 p-4 border-r text-[10px]" style={{ borderColor: `${style.primary}30`, background: `${style.primary}08` }}>
           <p className="font-bold uppercase mb-2" style={{ color: style.primary }}>Contact</p>
-          {getContacts(p).map((c) => <div key={c} className="mb-1 text-gray-600">{c}</div>)}
+          {getContactEntries(p).map((c) => <div key={c.type} className="mb-1 text-gray-600">{c.value}</div>)}
           {resume.skills?.filter((s) => s.name)?.length > 0 && (
             <div className="mt-4">
               <p className="font-bold uppercase mb-2" style={{ color: style.primary }}>{style.sectionLabels?.skills || 'Skills'}</p>
@@ -86,7 +86,7 @@ export const DECVLayout = ({ resume, style }) => {
         <p className="text-[9px] font-bold tracking-widest text-gray-400 mb-2">{style.sectionLabels?.docTitle}</p>
         <h1 className="text-lg font-bold leading-tight" style={{ color: style.primary }}>{p.fullName}</h1>
         <p className="text-xs text-gray-600 mt-1 mb-4">{p.jobTitle}</p>
-        {getContacts(p).map((c) => <div key={c} className="text-[10px] text-gray-600 mb-1">{c}</div>)}
+        {getContactEntries(p).map((c) => <div key={c.type} className="text-[10px] text-gray-600 mb-1">{c.value}</div>)}
       </aside>
       <main className="flex-1 p-6">
         <Sections resume={resume} style={style} variant="rule-accent" />
@@ -137,7 +137,7 @@ export const SACVLayout = ({ resume, style }) => {
         <h1 className="text-lg font-bold text-center">{p.fullName || 'Your Name'}</h1>
         <p className="text-sm text-center opacity-90 mt-1 mb-4 pb-3 border-b border-white/20">{p.jobTitle}</p>
         <p className="text-[9px] uppercase tracking-wider opacity-60 mb-2">Contact</p>
-        {getContacts(p).map((c) => <div key={c} className="text-[10px] mb-1 opacity-95">{c}</div>)}
+        {getContactEntries(p).map((c) => <div key={c.type} className="text-[10px] mb-1 opacity-95">{c.value}</div>)}
       </aside>
       <main className="flex-1 p-6" style={{ background: style.bg }}>
         <p className="text-[9px] font-bold tracking-widest text-gray-400 mb-3">{style.sectionLabels?.docTitle}</p>

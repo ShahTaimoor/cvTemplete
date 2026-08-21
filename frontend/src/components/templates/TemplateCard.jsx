@@ -3,6 +3,23 @@ import { Check, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getTemplatePreset } from '../../config/templates';
 import TemplateThumbnail from './TemplateThumbnail';
+import Skeleton from '../common/Skeleton';
+
+// Mirrors TemplateCard's shape: colored header block containing the
+// thumbnail-shaped area, then a category-tag line and a title line.
+export function TemplateCardSkeleton() {
+  return (
+    <div className="rounded-xl overflow-hidden border-2 border-slate-200 bg-white">
+      <div className="p-3 pb-3 bg-brand-50">
+        <div className="bg-white/70 rounded-lg p-2">
+          <Skeleton shape="rounded" className="w-full aspect-[210/297]" />
+        </div>
+        <Skeleton shape="rounded" width="50%" height={8} className="mt-3 mb-1.5" />
+        <Skeleton shape="rounded" width="75%" height={12} />
+      </div>
+    </div>
+  );
+}
 
 export default function TemplateCard({ template, onSelect, selected }) {
   const preset = getTemplatePreset(template.slug);
@@ -15,7 +32,6 @@ export default function TemplateCard({ template, onSelect, selected }) {
 
   return (
     <motion.div
-      layout
       whileHover={{ scale: template.locked ? 1 : 1.02 }}
       role={!template.locked && onSelect ? 'button' : undefined}
       tabIndex={!template.locked && onSelect ? 0 : undefined}
@@ -66,13 +82,13 @@ export default function TemplateCard({ template, onSelect, selected }) {
           className="absolute inset-0 backdrop-blur-sm bg-slate-900/70 flex flex-col items-center justify-center gap-2 z-10"
           onClick={(e) => e.stopPropagation()}
         >
-          <Lock className="text-amber-400" size={28} />
+          <Lock className="text-brass" size={28} />
           <p className="text-xs text-slate-300 text-center px-2">
             {template.lockReason || 'Upgrade to unlock'}
           </p>
           <Link
             to="/pricing"
-            className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-3 py-1.5 rounded-lg"
+            className="text-xs bg-brass hover:bg-brass/90 text-brand-700 font-semibold px-3 py-1.5 rounded-lg"
             onClick={(e) => e.stopPropagation()}
           >
             Upgrade to Unlock

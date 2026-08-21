@@ -80,3 +80,13 @@ export const getResumeStyle = (resume, templateSlug) => {
     showPhoto: preset.showPhoto,
   };
 };
+
+/** Shared by any renderer that calls renderLayout() directly (ResumePreview,
+ * the print-optimized PrintPage) so the layout->Sections-variant mapping
+ * only lives in one place. */
+export const getPreviewVariant = (style) => {
+  if (!style) return 'default';
+  if (['minimal', 'tech'].includes(style.layout)) return 'minimal';
+  if (style.layout === 'elegant') return 'elegant';
+  return 'default';
+};
