@@ -94,11 +94,18 @@ const PORT = process.env.PORT || 5000;
 
 await initSentry();
 
-connectDB()
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error('DB connection failed:', err.message);
-    process.exit(1);
-  });
+// Listening no longer waits on the DB connection settling first — against
+// the Atlas cluster this app uses, that can take anywhere from a few
+// seconds to 10+ seconds, during which the port would otherwise not be
+// listening at all (surfaced to the frontend as a 502 through Vite's dev
+// proxy, or a connection failure in production, for any request racing
+// startup). Mongoose queues queries issued before the connection is ready
+// and flushes them once it connects (see bufferTimeoutMS in config/db.js),
+// so opening the port immediately is safe — a request that arrives before
+// Mongo is up just waits briefly instead of failing outright.
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+connectDB().catch((err) => {
+  console.error('DB connection failed:', err.message);
+  process.exit(1);
+});

@@ -26,6 +26,54 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const RETRY_DELAY_MS = 800;
+// server.js now opens the port immediately rather than waiting on Mongo
+// (see its comments), so this is defense-in-depth for whatever startup gap
+// remains, not the primary fix — bounded well past what's actually expected.
+const MAX_RETRY_WINDOW_MS = 15000;
+
+// Two distinct failure shapes are both safe to retry transparently, because
+// in both cases the request never reached a route handler — nothing was
+// written, so there's no double-submit risk:
+//
+// 1. Gateway-level failure: no response at all, or a 502/503/504. Most
+//    notably right after `npm run dev` starts both servers, in the moment
+//    before the backend's port is listening — Vite's dev proxy turns that
+//    into a 502 rather than a raw network error (confirmed by direct
+//    measurement); a response-less error is the same failure one layer
+//    earlier (e.g. this dev server itself isn't up yet).
+// 2. The CSRF-priming race: the csrf-token cookie is only set once some
+//    /api response actually completes (see server.js), and the app fires a
+//    priming GET (/auth/me) on load to get one. During the same startup
+//    window above, that GET can itself be delayed (retried, or queued
+//    behind mongoose's connection buffering — see config/db.js) long enough
+//    for a write to fire before it resolves, going out with no token and
+//    getting a hard 403 `invalid csrf token` from doubleCsrfProtection —
+//    rejected in middleware, before any route handler runs.
+//
+// A genuine app-level error (anything the app itself returned after
+// actually processing the request, including a real 500 or any other 403)
+// is never retried here. Keeps retrying the same failure until it succeeds
+// or MAX_RETRY_WINDOW_MS has elapsed since the first attempt.
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const { config, response } = error;
+    const isGatewayFailure = !response || [502, 503, 504].includes(response.status);
+    const isCsrfPrimingRace = response?.status === 403 && response.data?.message === 'invalid csrf token';
+    if (!config || !(isGatewayFailure || isCsrfPrimingRace)) {
+      return Promise.reject(error);
+    }
+    const startedAt = config._retryStartedAt || Date.now();
+    if (Date.now() - startedAt >= MAX_RETRY_WINDOW_MS) {
+      return Promise.reject(error);
+    }
+    config._retryStartedAt = startedAt;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    return api(config);
+  }
+);
+
 export const authAPI = {
   register: (data) => api.post('/auth/register', data),
   login: (data) => api.post('/auth/login', data),
