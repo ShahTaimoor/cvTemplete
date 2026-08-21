@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/layout/Navbar';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import OfflineOverlay from './components/common/OfflineOverlay';
 import { ToastProvider } from './context/ToastProvider';
 import { ConfirmDialogProvider } from './context/ConfirmDialogProvider';
 import { fetchMe } from './store/authSlice';
@@ -136,6 +137,7 @@ function App() {
       <ToastProvider>
         <ConfirmDialogProvider>
           <AppRoutes />
+          <OfflineOverlay />
         </ConfirmDialogProvider>
       </ToastProvider>
     </BrowserRouter>
