@@ -1,22 +1,68 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Download, LayoutTemplate, CheckCircle, Share2, BarChart3, FileImage, FileType, History, Mail, X } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { Download, LayoutTemplate, CheckCircle, AlertCircle, Share2, BarChart3, LineChart, FileImage, FileType, History, Mail, X } from 'lucide-react';
 import { fetchResume, setCurrentResume } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI, downloadBlob } from '../services/api';
 import ResumeForm from '../components/builder/ResumeForm';
 import ResumePreview from '../components/resume/ResumePreview';
 import TemplateGallery from '../components/dashboard/TemplateGallery';
+import AnalyticsModal from '../components/analytics/AnalyticsModal';
 import { useAutoSave } from '../hooks/useAutoSave';
+import { useConfirm } from '../hooks/useConfirm';
+import { useToast } from '../hooks/useToast';
 import { getTemplatePreset } from '../config/templates';
-import { exportElementToPdf, exportElementToPng } from '../utils/exportPreview';
+import { exportElementToPng } from '../utils/exportPreview';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import MotionIcon from '../components/common/MotionIcon';
+import Skeleton from '../components/common/Skeleton';
+
+// Shape-matched placeholder for the initial resume-fetch loading state
+// below (`if (!localResume)`) — mirrors the real header bar (back link +
+// title + saved-status, then a row of action buttons) and the two-column
+// form/preview layout, instead of the previous plain "Loading resume..."
+// text on an otherwise blank page.
+function BuilderSkeleton() {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
+        <div className="flex items-center gap-3">
+          <Skeleton shape="rounded" width={70} height={12} className="hidden sm:block" />
+          <Skeleton shape="rounded" width={150} height={16} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Skeleton shape="rounded" width={84} height={30} />
+          <Skeleton shape="rounded" width={34} height={30} />
+          <Skeleton shape="rounded" width={94} height={30} className="hidden sm:block" />
+          <Skeleton shape="rounded" width={70} height={30} />
+        </div>
+      </div>
+      <div className="flex-1 grid lg:grid-cols-2 overflow-hidden">
+        <div className="flex flex-col gap-4 p-4 border-r border-slate-200 bg-white overflow-hidden">
+          <Skeleton shape="rounded" width="35%" height={14} />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton shape="rounded" width="28%" height={10} />
+              <Skeleton shape="rounded" className="w-full" height={40} />
+            </div>
+          ))}
+        </div>
+        <div className="p-4 bg-slate-200 hidden lg:flex items-center justify-center">
+          <Skeleton shape="rounded" className="w-full max-w-md aspect-[210/297]" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function BuilderPage() {
   const { id } = useParams();
   const dispatch = useDispatch();
-  const { current, saving, lastSaved } = useSelector((s) => s.resume);
+  const confirmDialog = useConfirm();
+  const toast = useToast();
+  const { current, saving, lastSaved, error: saveError } = useSelector((s) => s.resume);
   const { user } = useSelector((s) => s.auth);
   const { items: templates } = useSelector((s) => s.templates);
   const [localResume, setLocalResume] = useState(null);
@@ -25,6 +71,7 @@ export default function BuilderPage() {
   const [mobileTab, setMobileTab] = useState('edit');
   const [versions, setVersions] = useState([]);
   const [showVersions, setShowVersions] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [exporting, setExporting] = useState(false);
   const previewRef = useRef(null);
 
@@ -45,6 +92,32 @@ export default function BuilderPage() {
   useEffect(() => {
     dispatch(fetchTemplates());
   }, [plan, dispatch]);
+
+  // Regenerate the Dashboard card thumbnail on the way out, not on every
+  // autosave — the cleanup here fires once when this resume's Builder is
+  // actually left (back to Dashboard, or straight to another resume's
+  // Builder), never mid-edit. Fire-and-forget: nothing here should hold up
+  // the navigation, and the backend throttles/no-ops if we were just here.
+  //
+  // The `mounted` timer guards against React 18 StrictMode's dev-only
+  // mount→cleanup→mount double-invoke (same pattern DashboardPage works
+  // around elsewhere): without it, that synthetic cleanup fires this effect
+  // the instant the Builder opens — before the user has edited anything —
+  // generating a thumbnail from stale/sample content that then throttles
+  // out the real one when the user actually leaves later. StrictMode's
+  // extra pass runs synchronously in the same tick as mount, so a 0ms timer
+  // has not yet fired by the time that synthetic cleanup runs, but always
+  // has by the time a genuine unmount (a real user action) happens.
+  useEffect(() => {
+    let mounted = false;
+    const timer = setTimeout(() => { mounted = true; }, 0);
+    return () => {
+      clearTimeout(timer);
+      if (mounted) {
+        resumeAPI.regenerateThumbnail(id).catch(() => {});
+      }
+    };
+  }, [id]);
 
   // Only hydrate from server when opening this resume — don't overwrite local edits on every Redux update
   useEffect(() => {
@@ -98,23 +171,17 @@ export default function BuilderPage() {
         },
       });
     } catch (err) {
-      alert(err.response?.data?.message || 'Template switch failed');
+      toast.error(err.response?.data?.message || 'Template switch failed');
     }
   };
 
   const downloadPdf = async () => {
-    const el = getPreviewEl();
-    if (!el) {
-      alert('Switch to Preview tab first, then download PDF.');
-      return;
-    }
     setExporting(true);
     try {
-      if (mobileTab === 'edit') setMobileTab('preview');
-      await new Promise((r) => setTimeout(r, 400));
-      await exportElementToPdf(getPreviewEl(), safeFilename('pdf'));
+      const { data } = await resumeAPI.pdf(id);
+      downloadBlob(data, safeFilename('pdf'), 'application/pdf');
     } catch (err) {
-      alert(err.message || 'PDF export failed');
+      toast.error(err.response?.data?.message || 'PDF export failed');
     } finally {
       setExporting(false);
     }
@@ -125,14 +192,14 @@ export default function BuilderPage() {
       const { data } = await resumeAPI.docx(id);
       downloadBlob(data, `${localResume?.title || 'resume'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     } catch {
-      alert('DOCX export failed');
+      toast.error('DOCX export failed');
     }
   };
 
   const downloadPng = async () => {
     const el = getPreviewEl();
     if (!el) {
-      alert('Switch to Preview tab first, then download PNG.');
+      toast.info('Switch to Preview tab first, then download PNG.');
       return;
     }
     setExporting(true);
@@ -140,25 +207,40 @@ export default function BuilderPage() {
       if (mobileTab === 'edit') setMobileTab('preview');
       await new Promise((r) => setTimeout(r, 400));
       await exportElementToPng(getPreviewEl(), safeFilename('png'));
+      resumeAPI.trackDownload(id, 'png').catch(() => {});
     } catch (err) {
-      alert(err.message || 'PNG export failed');
+      toast.error(err.message || 'PNG export failed');
     } finally {
       setExporting(false);
     }
   };
 
   const saveVersion = async () => {
-    const name = prompt('Version name (e.g. Google application):', `v${versions.length + 1}`);
+    const name = await confirmDialog({
+      title: 'Save version',
+      inputMode: true,
+      inputLabel: 'Version name (e.g. Google application)',
+      defaultValue: `v${versions.length + 1}`,
+      confirmLabel: 'Save',
+    });
     if (!name) return;
     const { data } = await resumeAPI.saveVersion(id, { name });
     setVersions((v) => [data, ...v]);
+    toast.success(`Version saved as "${name}"`);
   };
 
   const restoreVersion = async (versionId) => {
-    if (!confirm('Restore this version? Current content will be replaced.')) return;
+    const ok = await confirmDialog({
+      title: 'Restore this version?',
+      message: 'Current content will be replaced.',
+      confirmLabel: 'Restore',
+      destructive: true,
+    });
+    if (!ok) return;
     const { data } = await resumeAPI.restoreVersion(id, versionId);
     setLocalResume(data);
     dispatch(setCurrentResume(data));
+    toast.success('Version restored');
   };
 
   const createCoverLetter = async () => {
@@ -166,7 +248,7 @@ export default function BuilderPage() {
       const { data } = await coverLetterAPI.create({ resumeId: id });
       window.location.href = `/cover-letter/${data._id}`;
     } catch (err) {
-      alert(err.response?.data?.message || 'Cover letter requires Premium');
+      toast.error(err.response?.data?.message || 'Cover letter requires Premium');
     }
   };
 
@@ -175,7 +257,7 @@ export default function BuilderPage() {
       const { data } = await resumeAPI.atsCheck(id);
       setAtsResult(data);
     } catch (err) {
-      alert(err.response?.data?.message || 'ATS check unavailable');
+      toast.error(err.response?.data?.message || 'ATS check unavailable');
     }
   };
 
@@ -183,16 +265,16 @@ export default function BuilderPage() {
     try {
       const { data } = await resumeAPI.share(id);
       navigator.clipboard.writeText(data.shareUrl);
-      alert('Share link copied!');
+      toast.success('Share link copied!');
     } catch (err) {
-      alert(err.response?.data?.message || 'Share requires Premium');
+      toast.error(err.response?.data?.message || 'Share requires Premium');
     }
   };
 
   if (!localResume) {
     return (
       <DashboardLayout fullHeight>
-        <div className="h-full flex items-center justify-center text-slate-500">Loading resume...</div>
+        <BuilderSkeleton />
       </DashboardLayout>
     );
   }
@@ -206,12 +288,21 @@ export default function BuilderPage() {
             Dashboard
           </Link>
           <h1 className="font-semibold text-slate-900 truncate max-w-[140px] sm:max-w-[200px]">{localResume.title}</h1>
-          <span className="text-xs text-slate-500 hidden sm:flex items-center gap-1">
-            {saving ? 'Saving...' : lastSaved && (
-              <>
-                <CheckCircle size={12} className="text-emerald-500" />
-                Saved {new Date(lastSaved).toLocaleTimeString()}
-              </>
+          <span className="text-xs hidden sm:flex items-center gap-1">
+            {saving ? (
+              <span className="text-slate-500">Saving...</span>
+            ) : saveError ? (
+              <span className="text-red-600 flex items-center gap-1">
+                <AlertCircle size={12} />
+                Save failed
+              </span>
+            ) : (
+              lastSaved && (
+                <span className="text-slate-500 flex items-center gap-1">
+                  <CheckCircle size={12} className="text-emerald-500" />
+                  Saved {new Date(lastSaved).toLocaleTimeString()}
+                </span>
+              )
             )}
           </span>
         </div>
@@ -230,24 +321,31 @@ export default function BuilderPage() {
               showTemplates ? 'app-btn-primary' : 'app-btn-secondary'
             }`}
           >
-            <LayoutTemplate size={14} /> <span className="hidden sm:inline">Templates</span>
+            <MotionIcon><LayoutTemplate size={14} /></MotionIcon> <span className="hidden sm:inline">Templates</span>
           </button>
           <button type="button" onClick={() => setShowVersions(!showVersions)} className="app-btn-secondary !py-1.5 !px-2 sm:!px-3">
-            <History size={14} />
+            <MotionIcon><History size={14} /></MotionIcon>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(true)}
+            className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm"
+          >
+            <MotionIcon><LineChart size={14} /></MotionIcon> Analytics
           </button>
           {['pro', 'premium'].includes(plan) && (
             <button type="button" onClick={runAts} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-              <BarChart3 size={14} /> ATS
+              <MotionIcon><BarChart3 size={14} /></MotionIcon> ATS
             </button>
           )}
           {plan === 'premium' && (
             <button type="button" onClick={shareResume} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-              <Share2 size={14} /> Share
+              <MotionIcon><Share2 size={14} /></MotionIcon> Share
             </button>
           )}
           {plan === 'premium' && (
             <button type="button" onClick={createCoverLetter} className="app-btn-secondary !py-1.5 !px-2 sm:!px-3 gap-1 text-xs sm:text-sm">
-              <Mail size={14} /> <span className="hidden sm:inline">Cover</span>
+              <MotionIcon><Mail size={14} /></MotionIcon> <span className="hidden sm:inline">Cover</span>
             </button>
           )}
           <button
@@ -256,13 +354,13 @@ export default function BuilderPage() {
             disabled={exporting}
             className="app-btn-primary !py-1.5 !px-2 sm:!px-3 gap-1 text-xs sm:text-sm disabled:opacity-50"
           >
-            <Download size={14} /> {exporting ? '...' : 'PDF'}
+            <MotionIcon><Download size={14} /></MotionIcon> {exporting ? '...' : 'PDF'}
           </button>
           <button type="button" onClick={downloadDocx} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-            <FileType size={14} /> DOCX
+            <MotionIcon><FileType size={14} /></MotionIcon> DOCX
           </button>
           <button type="button" onClick={downloadPng} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-            <FileImage size={14} /> PNG
+            <MotionIcon><FileImage size={14} /></MotionIcon> PNG
           </button>
         </div>
       </div>
@@ -328,7 +426,7 @@ export default function BuilderPage() {
                   className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                   aria-label="Close templates"
                 >
-                  <X size={18} />
+                  <MotionIcon rotate={90}><X size={18} /></MotionIcon>
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 min-h-0">
@@ -342,7 +440,7 @@ export default function BuilderPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
               <ResumeForm resume={localResume} onUpdate={handleUpdate} userPlan={plan} />
             </div>
           )}
@@ -362,6 +460,12 @@ export default function BuilderPage() {
         <button type="button" onClick={downloadDocx} className="flex-1 app-btn-secondary !py-2 text-xs">DOCX</button>
         <button type="button" onClick={downloadPng} className="flex-1 app-btn-secondary !py-2 text-xs">PNG</button>
       </div>
+
+      <AnimatePresence>
+        {showAnalytics && (
+          <AnalyticsModal resumeId={id} plan={plan} onClose={() => setShowAnalytics(false)} />
+        )}
+      </AnimatePresence>
     </div>
     </DashboardLayout>
   );

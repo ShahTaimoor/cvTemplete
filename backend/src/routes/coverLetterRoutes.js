@@ -1,13 +1,48 @@
 import express from 'express';
 import CoverLetter from '../models/CoverLetter.js';
+import CoverLetterVersion from '../models/CoverLetterVersion.js';
 import Resume from '../models/Resume.js';
+import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
 import { getSampleCoverLetterPayload } from '../utils/sampleResumeData.js';
 import { buildCoverLetterDocx } from '../services/docxService.js';
+import { generateCoverLetterPdf } from '../services/coverLetterPdfService.js';
 import { exportLimiter } from '../middleware/security.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { buildDailyTimeline, timelineStartDate } from '../utils/analytics.js';
+import { generateCoverLetterThumbnail, generateAndSaveThumbnail, fulfillIfDue, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
 
 const router = express.Router();
 router.use(protect);
+
+// Content-Disposition is a raw HTTP header, so its value has to be plain
+// ASCII — Node's http module throws ERR_INVALID_CHAR on anything outside
+// that range (e.g. the default sample title's em dash, "Cover Letter —
+// Software Engineer", crashed the PDF route entirely before this existed).
+// Strips whatever doesn't fit rather than percent/RFC-5987-encoding it,
+// since a slightly simplified filename is a fine trade for never 500ing.
+const safeAttachmentFilename = (title, fallback = 'cover-letter') =>
+  (title || '')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^-+|-+$/g, '') || fallback;
+
+// Mirrors resumeRoutes.js's resumeSnapshot exactly, including stripping
+// shareToken/isPublic so a duplicate never inherits the original's public
+// sharing state. `resume` (the linked-resume reference) is deliberately
+// kept, not stripped — a duplicate is a copy of the whole document, so it
+// stays "for" the same resume as the original until the user changes it.
+const coverLetterSnapshot = (doc) => {
+  const o = doc.toObject ? doc.toObject() : { ...doc };
+  delete o._id;
+  delete o.user;
+  delete o.createdAt;
+  delete o.updatedAt;
+  delete o.__v;
+  delete o.shareToken;
+  o.isPublic = false;
+  return o;
+};
 
 const requirePremium = (req, res, next) => {
   if (req.user.subscription?.plan !== 'premium') {
@@ -18,12 +53,18 @@ const requirePremium = (req, res, next) => {
 
 router.use(requirePremium);
 
-router.get('/', async (req, res) => {
-  const letters = await CoverLetter.find({ user: req.user._id }).sort({ updatedAt: -1 });
+router.get('/', asyncHandler(async (req, res) => {
+  const letters = await CoverLetter.find({ user: req.user._id })
+    .sort({ updatedAt: -1 })
+    .populate('resume', 'title');
   res.json(letters);
-});
 
-router.post('/', async (req, res) => {
+  // Opportunistic fulfillment of any deferred regenerations whose cooldown
+  // has since passed — mirrors resumeRoutes.js's GET / exactly.
+  letters.forEach((c) => fulfillIfDue(CoverLetter, c, req.user._id, generateCoverLetterThumbnail));
+}));
+
+router.post('/', asyncHandler(async (req, res) => {
   const sample = getSampleCoverLetterPayload();
   let personal = sample.personal || {};
   let theme;
@@ -60,15 +101,19 @@ router.post('/', async (req, res) => {
     closing: sample.closing,
   });
   res.status(201).json(letter);
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   res.json(letter);
-});
 
-router.put('/:id', async (req, res) => {
+  // Also exactly the request CoverLettersPage.jsx's watchThumbnail polls
+  // repeatedly while waiting — mirrors resumeRoutes.js's GET /:id exactly.
+  fulfillIfDue(CoverLetter, letter, req.user._id, generateCoverLetterThumbnail);
+}));
+
+router.put('/:id', asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   const fields = [
@@ -80,20 +125,144 @@ router.put('/:id', async (req, res) => {
   });
   await letter.save();
   res.json(letter);
-});
+}));
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   await CoverLetter.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+  await CoverLetterVersion.deleteMany({ coverLetter: req.params.id });
   res.json({ message: 'Deleted' });
-});
+}));
 
-router.post('/:id/docx', exportLimiter, async (req, res) => {
+router.post('/:id/duplicate', asyncHandler(async (req, res) => {
+  const source = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!source) return res.status(404).json({ message: 'Not found' });
+  const snap = coverLetterSnapshot(source);
+  const copy = await CoverLetter.create({
+    ...snap,
+    user: req.user._id,
+    title: req.body.title || `${source.title} (Copy)`,
+    isPublic: false,
+    shareToken: undefined,
+  });
+  res.status(201).json(copy);
+}));
+
+router.get('/:id/versions', asyncHandler(async (req, res) => {
+  const versions = await CoverLetterVersion.find({
+    coverLetter: req.params.id,
+    user: req.user._id,
+  }).sort({ createdAt: -1 });
+  res.json(versions);
+}));
+
+router.post('/:id/versions', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  const version = await CoverLetterVersion.create({
+    coverLetter: letter._id,
+    user: req.user._id,
+    name: req.body.name || `Version ${new Date().toLocaleString()}`,
+    snapshot: coverLetterSnapshot(letter),
+  });
+  res.status(201).json(version);
+}));
+
+router.post('/:id/versions/:versionId/restore', asyncHandler(async (req, res) => {
+  const version = await CoverLetterVersion.findOne({
+    _id: req.params.versionId,
+    coverLetter: req.params.id,
+    user: req.user._id,
+  });
+  if (!version) return res.status(404).json({ message: 'Version not found' });
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  Object.assign(letter, version.snapshot);
+  await letter.save();
+  res.json(letter);
+}));
+
+// Mirrors resumeRoutes.js's POST /:id/share exactly — no separate plan
+// check needed here (unlike Resume's, which gates Premium inline) since
+// requirePremium above already applies to every route in this file.
+router.post('/:id/share', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  letter.isPublic = true;
+  await letter.save();
+  const base = process.env.CLIENT_URL || 'http://localhost:5173';
+  res.json({ shareUrl: `${base}/share/cover-letter/${letter.shareToken}` });
+}));
+
+router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
   const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id });
   if (!letter) return res.status(404).json({ message: 'Not found' });
   const buffer = await buildCoverLetterDocx(letter);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="cover-letter.docx"`);
   res.send(buffer);
-});
+
+  // Fire-and-forget, mirroring resumeRoutes.js's docx/pdf routes exactly.
+  AnalyticsEvent.create({ coverLetter: letter._id, type: 'download', format: 'docx' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
+}));
+
+router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id }).select('_id title');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+  const buffer = await generateCoverLetterPdf(letter._id, req.user._id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeAttachmentFilename(letter.title)}.pdf"`);
+  res.send(buffer);
+
+  AnalyticsEvent.create({ coverLetter: letter._id, type: 'download', format: 'pdf' }).catch((err) =>
+    console.error('Analytics download tracking failed:', err)
+  );
+}));
+
+// Mirrors resumeRoutes.js's GET /:id/analytics exactly — no separate plan
+// check needed (requirePremium above already gates every route in this file
+// at Premium, a strictly higher bar than Resume's own Pro-or-higher check).
+router.get('/:id/analytics', asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id }).select('_id');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+
+  const DAYS = 30;
+  const since = timelineStartDate(DAYS);
+
+  const [totalViews, totalDownloads, recentEvents] = await Promise.all([
+    AnalyticsEvent.countDocuments({ coverLetter: letter._id, type: 'view' }),
+    AnalyticsEvent.countDocuments({ coverLetter: letter._id, type: 'download' }),
+    AnalyticsEvent.find({ coverLetter: letter._id, createdAt: { $gte: since } }).select('type createdAt'),
+  ]);
+
+  res.json({
+    totalViews,
+    totalDownloads,
+    timeline: buildDailyTimeline(recentEvents, DAYS),
+  });
+}));
+
+// Mirrors resumeRoutes.js's POST /:id/thumbnail exactly — same throttle
+// (shouldRegenerateThumbnail), same deferred-not-dropped handling of a
+// throttled request (thumbnailPending, fulfilled later by fulfillIfDue),
+// same 202 status either way (immediate vs pending, distinguished by the
+// response body) the frontend's poller relies on.
+router.post('/:id/thumbnail', exportLimiter, asyncHandler(async (req, res) => {
+  const letter = await CoverLetter.findOne({ _id: req.params.id, user: req.user._id })
+    .select('_id thumbnailGeneratedAt thumbnailPending');
+  if (!letter) return res.status(404).json({ message: 'Not found' });
+
+  if (!shouldRegenerateThumbnail(letter)) {
+    if (!letter.thumbnailPending) {
+      await CoverLetter.findByIdAndUpdate(letter._id, { thumbnailPending: true });
+    }
+    return res.status(202).json({ status: 'pending' });
+  }
+
+  res.status(202).json({ status: 'started' });
+  generateAndSaveThumbnail(CoverLetter, letter, req.user._id, generateCoverLetterThumbnail).catch((err) =>
+    console.error('Thumbnail generation failed:', err)
+  );
+}));
 
 export default router;

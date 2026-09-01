@@ -79,6 +79,14 @@ const resumeSchema = new mongoose.Schema(
     shareToken: { type: String, unique: true, sparse: true },
     isPublic: { type: Boolean, default: false },
     lastAutoSavedAt: { type: Date, default: Date.now },
+    thumbnailUrl: { type: String, default: '' },
+    thumbnailGeneratedAt: { type: Date },
+    // Set when a regeneration was requested while still within
+    // shouldRegenerateThumbnail's cooldown (see thumbnailService.js) — the
+    // request isn't dropped, it's deferred and fulfilled automatically the
+    // next time the cooldown has passed and this document is touched by a
+    // GET (list or detail) or another regeneration attempt.
+    thumbnailPending: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

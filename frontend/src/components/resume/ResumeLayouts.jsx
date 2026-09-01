@@ -1,10 +1,10 @@
-import { Sections, TimelineExperience, SkillBars, getContacts, resumeWithoutSkills, SectionTitle } from './resumeSections';
+import { Sections, TimelineExperience, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, SectionTitle } from './resumeSections';
 import { getThemedFrameBg, getThemedMutedBandStyle, getThemedCardStyles } from '../../utils/resumeThemeUtils';
 
 /* ─── Sidebar (left) — contact + skills in colored panel ─── */
 export const SidebarLeftLayout = ({ resume, style, variant, wide }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
   const skills = resume.skills || [];
 
   return (
@@ -29,7 +29,7 @@ export const SidebarLeftLayout = ({ resume, style, variant, wide }) => {
           <p className="text-sm opacity-90 mt-1 pb-4 border-b border-white/20">{p.jobTitle || 'Job Title'}</p>
           <p className="text-[10px] uppercase tracking-widest opacity-60 mt-4 mb-2">Contact</p>
           {contacts.map((c) => (
-            <div key={c} className="text-[10px] mb-1.5 opacity-95 break-words">{c}</div>
+            <div key={c.type} className="text-[10px] mb-1.5 opacity-95 break-words">{c.value}</div>
           ))}
           {skills.filter((s) => s.name).length > 0 && (
             <div className="mt-6">
@@ -49,7 +49,7 @@ export const SidebarLeftLayout = ({ resume, style, variant, wide }) => {
 /* ─── Sidebar RIGHT — main content left, info panel right ─── */
 export const SidebarRightLayout = ({ resume, style, variant }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
 
   return (
     <div className="flex min-h-[297mm]" style={{ fontSize: '11px', background: style.bg }}>
@@ -82,7 +82,7 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
         <div className="text-white">
           <p className="text-[10px] uppercase tracking-widest opacity-70 mb-3">Contact</p>
           {contacts.map((c) => (
-            <div key={c} className="text-[10px] mb-2 opacity-95">{c}</div>
+            <div key={c.type} className="text-[10px] mb-2 opacity-95">{c.value}</div>
           ))}
           {resume.skills?.filter((s) => s.name)?.length > 0 && (
             <div className="mt-6">
@@ -112,7 +112,7 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
 /* ─── Accent stripe + light sidebar ─── */
 export const SidebarAccentLayout = ({ resume, style }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
 
   return (
     <div className="flex min-h-[297mm]" style={{ fontSize: '11px' }}>
@@ -127,7 +127,7 @@ export const SidebarAccentLayout = ({ resume, style }) => {
         )}
         <p className="text-[10px] font-bold uppercase text-gray-400 mb-2">Contact</p>
         {contacts.map((c) => (
-          <div key={c} className="text-[10px] text-gray-600 mb-1">{c}</div>
+          <div key={c.type} className="text-[10px] text-gray-600 mb-1">{c.value}</div>
         ))}
         {resume.skills?.filter((s) => s.name)?.length > 0 && (
           <div className="mt-5">
@@ -157,8 +157,8 @@ export const DualColumnLayout = ({ resume, style }) => {
           <p className="text-sm opacity-90">{p.jobTitle || 'Job Title'}</p>
         </div>
         <div className="text-right text-[10px] opacity-85">
-          {getContacts(p).map((c) => (
-            <div key={c}>{c}</div>
+          {getContactEntries(p).map((c) => (
+            <div key={c.type}>{c.value}</div>
           ))}
         </div>
       </div>
@@ -245,8 +245,8 @@ export const SplitTopLayout = ({ resume, style }) => {
           <p className="text-lg mt-2 opacity-90">{p.jobTitle || 'Job Title'}</p>
         </div>
         <div className="p-8 flex flex-col justify-center" style={{ background: style.secondary, color: '#fff' }}>
-          {getContacts(p).map((c) => (
-            <div key={c} className="text-[11px] mb-1 opacity-95">{c}</div>
+          {getContactEntries(p).map((c) => (
+            <div key={c.type} className="text-[11px] mb-1 opacity-95">{c.value}</div>
           ))}
         </div>
       </div>
@@ -328,7 +328,7 @@ export const HeaderPhotoSplitLayout = ({ resume, style }) => {
           <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
           <p className="text-base text-gray-600 mt-1">{p.jobTitle || 'Job Title'}</p>
           <div className="mt-3 grid grid-cols-2 gap-1 text-[10px] text-gray-500">
-            {getContacts(p).map((c) => <span key={c}>{c}</span>)}
+            {getContactEntries(p).map((c) => <span key={c.type}>{c.value}</span>)}
           </div>
         </div>
       </div>
@@ -373,7 +373,7 @@ export const MagazineLayout = ({ resume, style }) => {
           <p className="text-lg mt-3 font-medium text-gray-600">{p.jobTitle || 'Job Title'}</p>
         </div>
         <div className="col-span-2 flex flex-col justify-end text-[10px] text-gray-500 space-y-1 border-l-2 pl-4" style={{ borderColor: style.primary }}>
-          {getContacts(p).map((c) => <div key={c}>{c}</div>)}
+          {getContactEntries(p).map((c) => <div key={c.type}>{c.value}</div>)}
         </div>
       </div>
       {p.photo && (
@@ -448,7 +448,7 @@ export const DiagonalHeaderLayout = ({ resume, style }) => {
         </div>
       </div>
       <div className="px-8 py-2 text-[10px] text-gray-500 flex flex-wrap gap-4 border-b">
-        {getContacts(p).map((c) => <span key={c}>{c}</span>)}
+        {getContactEntries(p).map((c) => <span key={c.type}>{c.value}</span>)}
       </div>
       <div className="p-8">
         <Sections resume={resume} style={style} variant="default" />
@@ -483,8 +483,8 @@ export const NarrowRightLayout = ({ resume, style }) => {
           <img src={p.photo} alt="" className="w-full aspect-square object-cover rounded-lg mb-4 shadow" />
         )}
         <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Contact</p>
-        {getContacts(p).map((c) => (
-          <div key={c} className="text-[10px] text-gray-600 mb-1.5">{c}</div>
+        {getContactEntries(p).map((c) => (
+          <div key={c.type} className="text-[10px] text-gray-600 mb-1.5">{c.value}</div>
         ))}
         {resume.skills?.filter((s) => s.name)?.length > 0 && (
           <div className="mt-5">
@@ -604,8 +604,8 @@ export const HeaderBandLayout = ({ resume, style, variant }) => {
         <h1 className="text-3xl font-bold">{p.fullName || 'Your Name'}</h1>
         <p className="text-lg opacity-90 mt-1">{p.jobTitle}</p>
         <div className="flex flex-wrap gap-3 mt-3 text-[10px] opacity-80">
-          {getContacts(p).map((c) => (
-            <span key={c}>{c}</span>
+          {getContactEntries(p).map((c) => (
+            <span key={c.type}>{c.value}</span>
           ))}
         </div>
       </div>
@@ -632,8 +632,8 @@ export const FooterBarLayout = ({ resume, style, variant }) => {
         className="px-8 py-4 flex justify-between text-[10px] text-white"
         style={{ background: style.primary }}
       >
-        {getContacts(p).map((c) => (
-          <span key={c}>{c}</span>
+        {getContactEntries(p).map((c) => (
+          <span key={c.type}>{c.value}</span>
         ))}
       </div>
     </div>
@@ -669,8 +669,8 @@ export const CenteredHeroLayout = ({ resume, style, variant }) => {
       <h1 className="text-3xl font-bold" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
       <p className="text-gray-600 mt-1 mb-2">{p.jobTitle}</p>
       <div className="text-[10px] text-gray-500 flex flex-wrap justify-center gap-2 mb-6">
-        {getContacts(p).map((c) => (
-          <span key={c}>{c}</span>
+        {getContactEntries(p).map((c) => (
+          <span key={c.type}>{c.value}</span>
         ))}
       </div>
       <div className="text-left border-t pt-6" style={{ borderColor: style.primary }}>
@@ -748,7 +748,7 @@ export const ContactStripLayout = ({ resume, style, variant }) => {
 /* ─── Sidebar with footer block ─── */
 export const SidebarFooterLayout = ({ resume, style, variant }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
   const skills = resume.skills || [];
   return (
     <div className="flex min-h-[297mm]" style={{ fontSize: '11px', fontFamily: style.font }}>
@@ -759,7 +759,7 @@ export const SidebarFooterLayout = ({ resume, style, variant }) => {
           <p className="text-sm opacity-90 mt-1 pb-4 border-b border-white/20">{p.jobTitle}</p>
           <p className="text-[10px] uppercase tracking-wider opacity-60 mt-4 mb-2">Contact</p>
           {contacts.map((c) => (
-            <div key={c} className="text-[10px] mb-1 opacity-95">{c}</div>
+            <div key={c.type} className="text-[10px] mb-1 opacity-95">{c.value}</div>
           ))}
           {skills.length > 0 && (
             <div className="mt-6">
@@ -828,7 +828,7 @@ export const CompactProLayout = ({ resume, style, variant }) => {
 /* ─── Classic header (single column) ─── */
 export const SplitHalfLayout = ({ resume, style, variant }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
   return (
     <div className="flex min-h-[297mm]" style={{ fontSize: '11px', fontFamily: style.font }}>
       <aside className="w-[42%] shrink-0 flex flex-col justify-between text-white p-7" style={{ background: style.primary }}>
@@ -840,7 +840,7 @@ export const SplitHalfLayout = ({ resume, style, variant }) => {
           <p className="text-sm opacity-90 mt-2 text-center pb-5 border-b border-white/25">{p.jobTitle || 'Job Title'}</p>
           <p className="text-[10px] uppercase tracking-widest opacity-60 mt-5 mb-2">Contact</p>
           {contacts.map((c) => (
-            <div key={c} className="text-[10px] mb-1.5 opacity-95">{c}</div>
+            <div key={c.type} className="text-[10px] mb-1.5 opacity-95">{c.value}</div>
           ))}
         </div>
         {resume.skills?.filter((s) => s.name)?.length > 0 && (
@@ -917,7 +917,7 @@ export const SwissLayout = ({ resume, style }) => {
           <h1 className="text-3xl font-light tracking-tight uppercase" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
         </div>
         <div className="col-span-4 text-right text-[9px] text-gray-500 self-end">
-          {getContacts(p).map((c) => <div key={c}>{c}</div>)}
+          {getContactEntries(p).map((c) => <div key={c.type}>{c.value}</div>)}
         </div>
       </div>
       <p className="text-xs font-medium uppercase tracking-[0.3em] mb-6 text-gray-600">{p.jobTitle}</p>
@@ -950,7 +950,7 @@ export const ExecutiveDarkLayout = ({ resume, style, variant }) => {
             <h1 className="text-3xl font-bold">{p.fullName || 'Your Name'}</h1>
             <p className="text-lg opacity-90 mt-1">{p.jobTitle || 'Job Title'}</p>
             <div className="flex flex-wrap gap-3 mt-3 text-[10px] opacity-75">
-              {getContacts(p).map((c) => <span key={c}>{c}</span>)}
+              {getContactEntries(p).map((c) => <span key={c.type}>{c.value}</span>)}
             </div>
           </div>
           {p.photo && (
@@ -969,7 +969,7 @@ export const ExecutiveDarkLayout = ({ resume, style, variant }) => {
 
 export const HorizontalSidebarLayout = ({ resume, style, variant }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
   return (
     <div className="min-h-[297mm] flex flex-col" style={{ background: style.bg, fontSize: '11px', fontFamily: style.font }}>
       <div className="flex border-b-4" style={{ borderColor: style.primary }}>
@@ -982,7 +982,7 @@ export const HorizontalSidebarLayout = ({ resume, style, variant }) => {
         </div>
         <div className="w-[30%] shrink-0 p-4 flex flex-col justify-center" style={{ background: getThemedFrameBg(style) }}>
           {contacts.map((c) => (
-            <div key={c} className="text-[9px] text-gray-600 mb-1">{c}</div>
+            <div key={c.type} className="text-[9px] text-gray-600 mb-1">{c.value}</div>
           ))}
         </div>
       </div>
@@ -1236,7 +1236,7 @@ export const NumberedSectionsLayout = ({ resume, style }) => {
 
 export const SidebarBottomLayout = ({ resume, style, variant }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
   return (
     <div className="min-h-[297mm] flex flex-col" style={{ background: style.bg, fontSize: '11px', fontFamily: style.font }}>
       <div className="flex-1 p-6">
@@ -1247,7 +1247,7 @@ export const SidebarBottomLayout = ({ resume, style, variant }) => {
       <div className="flex text-white shrink-0" style={{ background: style.primary }}>
         {p.photo && <img src={p.photo} alt="" className="w-24 h-24 object-cover shrink-0" />}
         <div className="flex-1 p-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px]">
-          {contacts.map((c) => <span key={c}>{c}</span>)}
+          {contacts.map((c) => <span key={c.type}>{c.value}</span>)}
         </div>
         {resume.skills?.filter((s) => s.name)?.length > 0 && (
           <div className="p-4 border-l border-white/20 min-w-[28%]">
@@ -1358,7 +1358,7 @@ export const DiagonalSplitLayout = ({ resume, style, variant }) => {
           <h1 className="text-2xl font-bold">{p.fullName || 'Your Name'}</h1>
           <p className="text-sm opacity-90 mt-1">{p.jobTitle}</p>
           <div className="text-[10px] opacity-80 mt-3 space-y-0.5">
-            {getContacts(p).map((c) => <div key={c}>{c}</div>)}
+            {getContactEntries(p).map((c) => <div key={c.type}>{c.value}</div>)}
           </div>
         </div>
         <div className="ml-auto max-w-[52%] rounded-lg p-5 shadow-md" style={{ background: style.bg }}>
@@ -1487,8 +1487,8 @@ export const SidebarDuoLayout = ({ resume, style, variant }) => {
         )}
         <h1 className="text-lg font-bold">{p.fullName || 'Your Name'}</h1>
         <p className="text-sm opacity-90 mt-1 mb-4">{p.jobTitle}</p>
-        {getContacts(p).map((c) => (
-          <div key={c} className="text-[10px] mb-1 opacity-95">{c}</div>
+        {getContactEntries(p).map((c) => (
+          <div key={c.type} className="text-[10px] mb-1 opacity-95">{c.value}</div>
         ))}
       </aside>
       <div className="w-1.5 shrink-0" style={{ background: style.primary }} />
@@ -1521,7 +1521,7 @@ export const NeonTerminalLayout = ({ resume, style }) => {
 
 export const ClassicLayout = ({ resume, style, variant = 'default' }) => {
   const p = resume.personal || {};
-  const contacts = getContacts(p);
+  const contacts = getContactEntries(p);
 
   return (
     <div className="p-8" style={{ background: style.bg, fontSize: '11px', fontFamily: style.font }}>
@@ -1532,7 +1532,7 @@ export const ClassicLayout = ({ resume, style, variant = 'default' }) => {
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
         <p style={{ color: style.secondary }} className="text-sm font-medium">{p.jobTitle || 'Job Title'}</p>
         <div className="flex flex-wrap gap-3 mt-2 text-gray-500 text-[10px]">
-          {contacts.map((c) => <span key={c}>{c}</span>)}
+          {contacts.map((c) => <span key={c.type}>{c.value}</span>)}
         </div>
       </div>
       <Sections resume={resume} style={style} variant={variant} />
@@ -1631,7 +1631,7 @@ export const renderLayout = (layout, props) => {
               <p className="text-sm text-gray-600">{resume.personal?.jobTitle}</p>
             </div>
             <div className="text-[10px] text-gray-500 text-right">
-              {getContacts(resume.personal).map((c) => <div key={c}>{c}</div>)}
+              {getContactEntries(resume.personal).map((c) => <div key={c.type}>{c.value}</div>)}
             </div>
           </div>
           <Sections resume={resume} style={style} variant="default" />

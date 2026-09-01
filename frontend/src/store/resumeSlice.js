@@ -18,7 +18,9 @@ export const saveResume = createAsyncThunk(
       const { data } = await resumeAPI.update(id, payload);
       return data;
     } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Save failed');
+      return rejectWithValue(
+        err.response?.data?.message || 'Failed to save changes — please check your connection.'
+      );
     }
   }
 );
@@ -56,11 +58,12 @@ const resumeSlice = createSlice({
     builder
       .addCase(fetchResumes.fulfilled, (s, a) => { s.list = a.payload; })
       .addCase(fetchResume.fulfilled, (s, a) => { s.current = a.payload; })
-      .addCase(saveResume.pending, (s) => { s.saving = true; })
+      .addCase(saveResume.pending, (s) => { s.saving = true; s.error = null; })
       .addCase(saveResume.fulfilled, (s, a) => {
         s.saving = false;
         s.current = a.payload;
         s.lastSaved = new Date().toISOString();
+        s.error = null;
       })
       .addCase(saveResume.rejected, (s, a) => {
         s.saving = false;

@@ -2,11 +2,33 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #2563eb;
-  --color-brand-600: #1d4ed8;
-  --color-brand-700: #1e40af;
+  /* Headline-only serif — never applied to body copy or UI chrome. */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+
+  /* Ink Navy brand scale — 600 is the approved base (#142440). */
+  --color-brand-50: #eef1f6;
+  --color-brand-100: #dce3ed;
+  --color-brand-200: #b9c6d9;
+  --color-brand-300: #93a6c0;
+  --color-brand-500: #2c4468;
+  --color-brand-600: #142440;
+  --color-brand-700: #0c1830;
+
+  /* Additional semantic tokens from the approved brand concept — not part
+     of the brand-* accent scale, each has one specific job:
+     mist = page background, graphite = body text, steel = muted/secondary
+     text, brass = accent (buttons/highlights), burgundy = reserved for
+     Pro/Premium indicators only. */
+  --color-mist: #f4f6f9;
+  --color-graphite: #333b47;
+  --color-steel: #7b8798;
+  --color-brass: #b98b4e;
+  /* #b98b4e on white is ~3:1 contrast — fails WCAG AA for normal text.
+     Use brass-ink instead whenever brass appears as small/body text;
+     keep plain brass for backgrounds, large type, icons and borders. */
+  --color-brass-ink: #8a6a2e;
+  --color-burgundy: #6e2a3b;
+
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
   --color-gray-200: #e5e7eb;
@@ -29,11 +51,63 @@
   --color-slate-900: #0f172a;
   --color-white: #ffffff;
   --color-black: #000000;
+
+  /* Skeleton loading shimmer (see components/common/Skeleton.jsx) — a plain
+     CSS animation rather than a Framer Motion `animate` loop specifically
+     because it has to keep running unattended for as long as a page takes
+     to load, including the moment it mounts (a Skeleton is typically the
+     very first thing a route paints). A Framer Motion keyframe animation
+     mounting concurrently with an ancestor's own in-flight transition (e.g.
+     the app-wide page-enter fade in App.jsx's PageTransition, which every
+     route — including the very first paint of a still-loading page — sits
+     inside) was observed silently dropping its `repeat: Infinity` and
+     freezing after exactly one cycle. A CSS animation has no such
+     dependency on React/Framer Motion's render or transition lifecycle.
+     Translate values are in the shimmer band's own percentage terms (its
+     div is w-1/2 of the skeleton block), matching the -100%/200% span the
+     Framer Motion version used. */
+  --animate-shimmer: shimmer 1.5s linear infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply antialiased;
+  background-color: var(--color-mist);
+  color: var(--color-graphite);
   font-family: var(--font-sans);
+}
+
+/* Brand scrollbar, applied globally. scrollbar-width/-color are inherited
+   properties, so setting them once on :root covers every scrollable
+   element in the app; the WebKit pseudo-elements below are NOT inherited
+   and only ever target the element they're written against, so they need
+   the universal selector to reach every scrollable panel the same way
+   (Dashboard, the Builder's long form, modals, etc.), not just the page. */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-brand-300) var(--color-mist);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-mist);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-brand-300);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brass);
 }
 
 .resume-preview-root {
@@ -43,23 +117,29 @@ body {
   font-family: var(--resume-font, Inter, sans-serif);
 }
 
-/* App UI primitives */
-.app-card {
-  @apply bg-white border border-slate-200 rounded-xl shadow-sm;
-}
+/* App UI primitives — layered so Tailwind's own utilities (e.g. hidden,
+   sm:flex) keep priority over these per CSS cascade-layers rules. Unlayered
+   custom CSS always outranks layered utilities regardless of source order,
+   which previously made `hidden sm:flex` silently fail to hide any element
+   also carrying .app-btn-primary/.app-btn-secondary (their inline-flex won). */
+@layer components {
+  .app-card {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm;
+  }
 
-.app-input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
-}
+  .app-input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20;
+  }
 
-.app-btn-primary {
-  @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors;
-}
+  .app-btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-all duration-150 active:scale-[0.97];
+  }
 
-.app-btn-secondary {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors;
-}
+  .app-btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.97];
+  }
 
-.app-label {
-  @apply block text-sm font-medium text-slate-700 mb-1.5;
+  .app-label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
 }

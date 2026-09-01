@@ -1,69 +1,346 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Download, Palette, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { motion, useInView, useScroll, useTransform } from 'framer-motion';
+import { Shield, ArrowRight } from 'lucide-react';
+import Seal from '../components/common/Seal';
+import FileTextFanIcon from '../components/common/FileTextFanIcon';
+import PaletteDotCycleIcon from '../components/common/PaletteDotCycleIcon';
+import DownloadBounceIcon from '../components/common/DownloadBounceIcon';
+import ShieldCheckDrawIcon from '../components/common/ShieldCheckDrawIcon';
+import SparklesTwinkleIcon from '../components/common/SparklesTwinkleIcon';
+import { DURATION, EASE } from '../lib/motion';
 
 const features = [
-  { icon: FileText, title: '330+ templates', desc: 'US, UK, EU, Pakistan, Saudi, Gulf & 25+ country CV formats' },
-  { icon: Palette, title: 'Custom themes', desc: 'Brand colors and fonts on Pro and Premium' },
-  { icon: Download, title: 'PDF export', desc: 'Download a polished resume that matches your preview' },
-  { icon: Shield, title: 'ATS checker', desc: 'Optimize keywords before you apply' },
-  { icon: Sparkles, title: 'Auto-save', desc: 'Your work is saved as you type' },
+  { icon: FileTextFanIcon, title: '330+ templates', desc: 'US, UK, EU, Pakistan, Saudi, Gulf & 25+ country CV formats' },
+  { icon: PaletteDotCycleIcon, title: 'Custom themes', desc: 'Brand colors and fonts on Pro and Premium' },
+  { icon: DownloadBounceIcon, title: 'PDF export', desc: 'Download a polished resume that matches your preview' },
+  { icon: ShieldCheckDrawIcon, title: 'ATS checker', desc: 'Optimize keywords before you apply' },
+  { icon: SparklesTwinkleIcon, title: 'Auto-save', desc: 'Your work is saved as you type' },
 ];
 
+// Owns its own hover state locally — hooks can't live inline in the
+// features.map() below. `hovered` drives the icon's own hand-built
+// animation; the card's scroll-triggered entrance (via the `variants`
+// prop, orchestrated by the parent's whileInView) is completely
+// independent of this and untouched by it.
+function FeatureCard({ Icon, title, desc }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.div
+      variants={featureCard}
+      className="app-card p-6"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-4">
+        <Icon hovered={hovered} size={22} />
+      </span>
+      <h3 className="font-semibold text-graphite mb-1">{title}</h3>
+      <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
+    </motion.div>
+  );
+}
+
+// Same clipped hover-sweep technique as CreditCardShineIcon, applied to the
+// CTA button itself rather than an icon glyph: a soft light band sweeps
+// across on hover, layered on top of (not replacing) the button's existing
+// scale/boxShadow glow, which stays driven by Framer's own whileHover on
+// the wrapping motion.div below — this only adds the sweep, tracked via a
+// separate plain hover state on the Link itself.
+function CtaButton() {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <motion.div
+      initial={{ boxShadow: '0 0 0 0 rgba(185,139,78,0)' }}
+      whileHover={{ scale: 1.06, boxShadow: '0 8px 30px 0 rgba(185,139,78,0.45)' }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 16 }}
+      className="rounded-lg"
+    >
+      <Link
+        to="/register"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        className="relative overflow-hidden inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
+      >
+        <motion.span
+          aria-hidden
+          // Travel is deliberately snug — just far enough that the band starts
+          // and ends fully clear of the button (its own width is 1/3 of the
+          // button's, so -100%/300% are exactly flush with each edge) rather
+          // than a wide margin on both sides. The wider version technically
+          // swept correctly but spent most of its distance off-screen, so the
+          // visible crossing over the button was too brief to actually read
+          // as a sweep rather than a flash.
+          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white/0 via-white/60 to-white/0"
+          animate={hovered ? { x: '300%' } : { x: '-100%' }}
+          transition={hovered ? { duration: DURATION.slow, ease: EASE } : { duration: 0 }}
+        />
+        Get started
+      </Link>
+    </motion.div>
+  );
+}
+
+/**
+ * Landing-page-only motion language: bolder, more expressive than the rest
+ * of the app (see frontend/src/lib/motion.js for the functional-app tokens).
+ * This is a one-time first impression, not a tool people click through
+ * dozens of times a day, so longer durations and spring physics are fair
+ * game here.
+ */
+const heroContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.15, delayChildren: 0.1 } },
+};
+
+const heroItem = {
+  hidden: { opacity: 0, y: 28 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 110, damping: 15, mass: 0.7 },
+  },
+};
+
+const featuresContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.1 } },
+};
+
+const featureCard = {
+  hidden: { opacity: 0, y: 32 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const ctaBanner = {
+  hidden: { opacity: 0, y: 36, scale: 0.98 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 90, damping: 16, mass: 0.8 },
+  },
+};
+
 export default function LandingPage() {
+  // The app-wide route AnimatePresence uses initial={false} (App.jsx) so the
+  // whole app doesn't fade in on first boot — but that also suppresses this
+  // hero's own mount-triggered initial->animate transition on a hard page
+  // load, since Framer treats anything present at that very first render as
+  // already "settled." Flipping `animate` from a useEffect (fires after the
+  // first paint) creates a genuine prop-change transition instead of an
+  // initial-mount one, which isn't subject to that suppression.
+  //
+  // The animation is only worth that treatment once per session, though —
+  // replaying the full slide-in on every refresh reads as repetitive rather
+  // than a first impression. sessionStorage (not localStorage) is read
+  // synchronously via a lazy useState initializer, so a repeat visit's very
+  // first render already has `heroSeen: true` — no flash of the hidden
+  // starting state before it snaps settled. Passing `initial={false}` on the
+  // motion.div itself (not just leaving `animate` pre-set to "visible")
+  // is what actually skips Framer's mount transition on a repeat visit;
+  // without it a fresh mount would still animate from "hidden" to "visible"
+  // regardless of the AnimatePresence-level suppression above, since that
+  // suppression only applies to the app's very first-ever paint.
+  const HERO_SEEN_KEY = 'resumeforge_hero_seen';
+  const [heroSeen] = useState(() => {
+    try {
+      return sessionStorage.getItem(HERO_SEEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const [heroVisible, setHeroVisible] = useState(heroSeen);
+  useEffect(() => {
+    if (!heroSeen) setHeroVisible(true);
+    try {
+      sessionStorage.setItem(HERO_SEEN_KEY, '1');
+    } catch {
+      // sessionStorage unavailable (e.g. disabled) — animation just replays each time.
+    }
+  }, [heroSeen]);
+
+  // Same root cause as the hero, different Framer API: the CTA banner's
+  // whileInView/initial props were ALSO getting suppressed by the outer
+  // AnimatePresence's initial={false} on a fresh load — its opacity/scale
+  // sat permanently at the "already revealed" end state, verified by
+  // sampling computed style (never transitioned, even after scrolling it
+  // into view). useInView is a plain IntersectionObserver-backed hook, not
+  // a whileInView/initial prop, so it isn't subject to that suppression;
+  // driving `animate` from its boolean result sidesteps the bug entirely.
+  const ctaRef = useRef(null);
+  const ctaInView = useInView(ctaRef, { once: true, amount: 0.4 });
+
+  // Whole-page scroll tracking, distinct from and additive to the
+  // entrance/hover animations above: drives the top progress bar directly,
+  // and the hero orbs' parallax drift below (scrollY, in raw px).
+  const { scrollY, scrollYProgress } = useScroll();
+  const orb1Y = useTransform(scrollY, [0, 800], [0, -100]);
+  const orb2Y = useTransform(scrollY, [0, 800], [0, 70]);
+
+  // Scoped separately to the features section itself (not the whole page)
+  // so the parallax offset reflects scroll progress *through that section*
+  // specifically — 0 as it enters the viewport, 1 as it leaves — rather
+  // than the page as a whole.
+  const featuresRef = useRef(null);
+  const { scrollYProgress: featuresProgress } = useScroll({
+    target: featuresRef,
+    offset: ['start end', 'end start'],
+  });
+  const featuresParallaxY = useTransform(featuresProgress, [0, 1], [-14, 14]);
+
   return (
     <div className="bg-white">
-      <section className="border-b border-slate-200 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold text-brand-600 mb-4">Professional CV builder</p>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-[1.1]">
-              Build a resume that opens doors
-            </h1>
-            <p className="text-lg text-slate-600 mt-6 max-w-xl leading-relaxed">
-              ResumeForge gives you recruiter-ready templates, live preview, and simple pricing — starting free,
-              from Rs. 150/month (PKR).
-            </p>
-            <div className="flex flex-wrap gap-3 mt-10">
-              <Link to="/register" className="app-btn-primary !px-8 !py-3 text-base">
-                Start free
-                <ArrowRight size={18} className="ml-2" />
-              </Link>
-              <Link to="/pricing" className="app-btn-secondary !px-8 !py-3 text-base">
-                View pricing
-              </Link>
-            </div>
-          </div>
+      {/* Scroll progress indicator — fixed to the viewport top, above the
+          Navbar, only mounted while this page is (unmounts on navigation,
+          so it never leaks into other routes). */}
+      <motion.div
+        aria-hidden
+        className="fixed top-0 inset-x-0 h-[3px] bg-brass origin-left z-[60] pointer-events-none"
+        style={{ scaleX: scrollYProgress }}
+      />
+
+      <section className="relative overflow-hidden border-b border-slate-200 bg-mist">
+        {/* Floating decorative orbs — existing ambient bob/scale motion lives
+            on the inner element, untouched; the outer wrapper adds a
+            scroll-linked parallax drift on top via a plain style MotionValue,
+            so the two motions compose independently instead of fighting over
+            the same `animate` prop. */}
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute -top-24 -right-24 h-96 w-96"
+          style={{ y: orb1Y }}
+        >
+          <motion.div
+            className="h-full w-full rounded-full bg-brand-200/40 blur-3xl"
+            animate={{ y: [0, -22, 0], scale: [1, 1.06, 1] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </motion.div>
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute top-1/3 -left-20 h-72 w-72"
+          style={{ y: orb2Y }}
+        >
+          <motion.div
+            className="h-full w-full rounded-full bg-brass/15 blur-3xl"
+            animate={{ y: [0, 18, 0], scale: [1, 1.08, 1] }}
+            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          />
+        </motion.div>
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
+          <motion.div
+            className="max-w-3xl"
+            initial={heroSeen ? false : 'hidden'}
+            animate={heroVisible ? 'visible' : 'hidden'}
+            variants={heroContainer}
+          >
+            <motion.p
+              variants={heroItem}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-brass-ink mb-5"
+            >
+              <Shield size={16} className="text-brass-ink" />
+              Professional CV Builder
+            </motion.p>
+            <motion.h1
+              variants={heroItem}
+              className="text-4xl sm:text-5xl lg:text-6xl font-medium text-brand-600 tracking-tight leading-[1.1]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Build a résumé that earns trust
+            </motion.h1>
+            <motion.p variants={heroItem} className="text-lg text-slate-600 mt-6 max-w-xl leading-relaxed">
+              ResumeForge pairs recruiter-ready templates with real-time preview and transparent pricing —
+              trusted by professionals across Pakistan and the Gulf. Starting free, from Rs. 150/month (PKR).
+            </motion.p>
+            <motion.div variants={heroItem} className="flex flex-wrap gap-3 mt-10">
+              <motion.div
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+              >
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center rounded-lg bg-brass px-8 py-3 text-base font-semibold text-brand-700 hover:bg-brass/90 transition-colors"
+                >
+                  Start free
+                  <ArrowRight size={18} className="ml-2" />
+                </Link>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 18 }}
+              >
+                <Link to="/pricing" className="app-btn-secondary !px-8 !py-3 text-base">
+                  View pricing
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            <motion.div variants={heroItem} className="flex items-center gap-3 mt-12">
+              <Seal size={36} />
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-graphite">Formats recruiters trust</span> — built for
+                Pakistan, the Gulf, and beyond.
+              </p>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
-        <h2 className="text-2xl font-bold text-slate-900 text-center mb-10">Everything you need to get hired</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="app-card p-6">
-              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-50 text-brand-600 mb-4">
-                <Icon size={22} />
-              </span>
-              <h3 className="font-semibold text-slate-900 mb-1">{title}</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
+      <section ref={featuresRef} className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-20">
+        <motion.h2
+          className="text-2xl font-medium text-brand-600 text-center mb-10"
+          style={{ fontFamily: 'var(--font-display)' }}
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.6 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        >
+          Everything you need to get hired
+        </motion.h2>
+        {/* Subtle scroll-through parallax (±14px) layered on the outer
+            wrapper's style, independent of the inner motion.div's own
+            scroll-triggered stagger entrance (initial/whileInView/variants
+            below) — same nested-motion-elements composition pattern as the
+            hero orbs above. */}
+        <motion.div style={{ y: featuresParallaxY }}>
+          <motion.div
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={featuresContainer}
+          >
+            {features.map(({ icon: Icon, title, desc }) => (
+              <FeatureCard key={title} Icon={Icon} title={title} desc={desc} />
+            ))}
+          </motion.div>
+        </motion.div>
       </section>
 
       <section className="border-t border-slate-200 bg-brand-600">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="text-white">
-            <h2 className="text-2xl font-bold">Ready to create your resume?</h2>
-            <p className="text-brand-100 mt-2">Join free — no credit card required.</p>
+        <motion.div
+          ref={ctaRef}
+          className="max-w-6xl mx-auto px-4 sm:px-6 py-14 flex flex-col sm:flex-row items-center justify-between gap-6"
+          initial="hidden"
+          animate={ctaInView ? 'visible' : 'hidden'}
+          variants={ctaBanner}
+        >
+          <div className="flex items-center gap-4 text-white">
+            <Seal size={44} className="ring-2 ring-white/20" />
+            <div>
+              <h2 className="text-2xl font-medium" style={{ fontFamily: 'var(--font-display)' }}>
+                Ready to create your resume?
+              </h2>
+              <p className="text-brand-100 mt-1">Join free — no credit card required.</p>
+            </div>
           </div>
-          <Link
-            to="/register"
-            className="inline-flex items-center justify-center rounded-lg bg-white px-8 py-3 font-semibold text-brand-700 hover:bg-brand-50 transition-colors"
-          >
-            Get started
-          </Link>
-        </div>
+          <CtaButton />
+        </motion.div>
       </section>
     </div>
   );

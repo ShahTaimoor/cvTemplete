@@ -1,11 +1,14 @@
 import { useForm } from 'react-hook-form';
 import { useEffect, useRef } from 'react';
+import { Upload } from 'lucide-react';
 import DynamicListField from './DynamicListField';
 import ThemeCustomizer from './ThemeCustomizer';
 import SectionOrder from './SectionOrder';
 import { uploadAPI } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 
 export default function ResumeForm({ resume, onUpdate, userPlan }) {
+  const toast = useToast();
   const { register, watch, reset } = useForm({ defaultValues: resume });
   const resumeRef = useRef(resume);
   resumeRef.current = resume;
@@ -42,12 +45,12 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
       const r = resumeRef.current;
       onUpdate({ ...r, personal: { ...r.personal, photo: url } });
     } catch {
-      alert('Photo upload failed. Configure Cloudinary or use local storage.');
+      toast.error('Photo upload failed. Configure Cloudinary or use local storage.');
     }
   };
 
   return (
-    <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-120px)] pr-2">
+    <div className="space-y-6">
       <div>
         <label className="app-label">Resume Title</label>
         <input {...register('title')} className="app-input" />
@@ -70,7 +73,11 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
         </div>
         <div>
           <label className="app-label">Profile Photo</label>
-          <input type="file" accept="image/*" onChange={handlePhoto} className="mt-1 text-sm" />
+          <label className="app-btn-secondary cursor-pointer inline-flex w-fit gap-2">
+            <Upload size={16} />
+            Choose Photo
+            <input type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />
+          </label>
         </div>
       </section>
 
