@@ -31,6 +31,22 @@ app.use(securityMiddleware);
 app.use('/api', apiLimiter);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'CV Builder API is running',
+    docs: '/api/health',
+  });
+});
+
+app.get('/api', (_req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'CV Builder API is running',
+    endpoints: ['/api/health', '/api/auth', '/api/templates', '/api/resumes', '/api/subscriptions', '/api/upload', '/api/public', '/api/print', '/api/cover-letters'],
+  });
+});
+
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/auth', authRoutes);
