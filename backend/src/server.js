@@ -88,6 +88,18 @@ app.get('/api', (_req, res) => {
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Lets a cross-origin frontend obtain the CSRF token from the response body
+// instead of having to read the csrf-token cookie with document.cookie — which
+// it can't when the API is on a different subdomain (e.g. cv.* vs apicv.*). The
+// cookie is still set (by the middleware above) and still sent back on
+// credentialed requests, so the double-submit check is unchanged; the token
+// isn't secret in that model, and CORS keeps this response unreadable to any
+// other origin anyway. Frontend keeps the value in memory and echoes it in the
+// x-csrf-token header. GET, so it's past doubleCsrfProtection untouched.
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: generateCsrfToken(req, res) });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/resumes', resumeRoutes);

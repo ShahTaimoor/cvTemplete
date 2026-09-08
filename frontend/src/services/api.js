@@ -9,19 +9,39 @@ const api = axios.create({
   withCredentials: true,
 });
 
-const getCookie = (name) => {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+// Double-submit CSRF. The backend still sets a csrf-token cookie and still
+// compares it against the x-csrf-token header on writes — but this app may be
+// served from a different subdomain than the API (cv.* vs apicv.*), where
+// document.cookie can't see that cookie at all. So instead of reading the
+// cookie, we fetch the token once from GET /csrf-token and keep it in memory;
+// the cookie itself still rides along automatically on credentialed requests,
+// which is all the backend's check needs. Re-fetched on a 403 (see below).
+let csrfToken = null;
+let csrfPrimePromise = null;
+
+const primeCsrfToken = () => {
+  if (!csrfPrimePromise) {
+    csrfPrimePromise = api
+      .get('/csrf-token')
+      .then(({ data }) => {
+        csrfToken = data?.csrfToken || null;
+      })
+      .catch(() => {
+        csrfToken = null;
+      })
+      .finally(() => {
+        csrfPrimePromise = null;
+      });
+  }
+  return csrfPrimePromise;
 };
 
-// Double-submit CSRF: the backend issues a readable (non-httpOnly) cookie
-// on every response; state-changing requests must echo its value back in
-// this header so the backend can confirm the request came from a context
-// that could read the cookie (same-origin), not a cross-site form/script.
-// Harmless to attach on GETs too — the backend only checks it for
-// POST/PUT/PATCH/DELETE.
-api.interceptors.request.use((config) => {
-  const csrfToken = getCookie('csrf-token');
+const WRITE_METHODS = ['post', 'put', 'patch', 'delete'];
+
+api.interceptors.request.use(async (config) => {
+  const isWrite = WRITE_METHODS.includes((config.method || 'get').toLowerCase());
+  // The prime call is a GET, so it never re-enters this branch.
+  if (isWrite && !csrfToken) await primeCsrfToken();
   if (csrfToken) config.headers['x-csrf-token'] = csrfToken;
   return config;
 });
@@ -32,36 +52,26 @@ const RETRY_DELAY_MS = 800;
 // remains, not the primary fix — bounded well past what's actually expected.
 const MAX_RETRY_WINDOW_MS = 15000;
 
-// Two distinct failure shapes are both safe to retry transparently, because
-// in both cases the request never reached a route handler — nothing was
-// written, so there's no double-submit risk:
+// Two failure shapes are retried transparently — in both cases the request
+// never reached (or never mutated) a route handler, so there's no double-submit
+// risk from replaying it:
 //
-// 1. Gateway-level failure: no response at all, or a 502/503/504. Most
-//    notably right after `npm run dev` starts both servers, in the moment
-//    before the backend's port is listening — Vite's dev proxy turns that
-//    into a 502 rather than a raw network error (confirmed by direct
-//    measurement); a response-less error is the same failure one layer
-//    earlier (e.g. this dev server itself isn't up yet).
-// 2. The CSRF-priming race: the csrf-token cookie is only set once some
-//    /api response actually completes (see server.js), and the app fires a
-//    priming GET (/auth/me) on load to get one. During the same startup
-//    window above, that GET can itself be delayed (retried, or queued
-//    behind mongoose's connection buffering — see config/db.js) long enough
-//    for a write to fire before it resolves, going out with no token and
-//    getting a hard 403 `invalid csrf token` from doubleCsrfProtection —
-//    rejected in middleware, before any route handler runs.
+// 1. Gateway-level failure: no response at all, or a 502/503/504 — e.g. right
+//    after startup, before the backend's port is listening. Retried after a
+//    fixed delay.
+// 2. A 403 `invalid csrf token`: the in-memory token is missing or stale (the
+//    backend rotated its secret, or this tab outlived the cookie). Drop it,
+//    fetch a fresh one from /csrf-token, and retry straight away.
 //
-// A genuine app-level error (anything the app itself returned after
-// actually processing the request, including a real 500 or any other 403)
-// is never retried here. Keeps retrying the same failure until it succeeds
-// or MAX_RETRY_WINDOW_MS has elapsed since the first attempt.
+// Any other error — including a real 500 or any other 403 — is passed through.
+// Both paths are bounded by MAX_RETRY_WINDOW_MS from the first attempt.
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const { config, response } = error;
     const isGatewayFailure = !response || [502, 503, 504].includes(response.status);
-    const isCsrfPrimingRace = response?.status === 403 && response.data?.message === 'invalid csrf token';
-    if (!config || !(isGatewayFailure || isCsrfPrimingRace)) {
+    const isCsrfFailure = response?.status === 403 && response.data?.message === 'invalid csrf token';
+    if (!config || !(isGatewayFailure || isCsrfFailure)) {
       return Promise.reject(error);
     }
     const startedAt = config._retryStartedAt || Date.now();
@@ -69,7 +79,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     config._retryStartedAt = startedAt;
-    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    if (isCsrfFailure) {
+      csrfToken = null;
+      await primeCsrfToken();
+    } else {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    }
     return api(config);
   }
 );
