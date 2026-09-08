@@ -52,6 +52,16 @@ app.use('/api', apiLimiter);
 // token in hand by the time it needs to submit a state-changing request.
 // Reuses an existing valid cookie rather than rotating it on every call.
 app.use('/api', (req, res, next) => {
+  // Once COOKIE_DOMAIN is in play, expire any pre-existing host-only
+  // csrf-token (issued before COOKIE_DOMAIN was set). It's a different
+  // cookie tuple from the domain-scoped one generateCsrfToken sets below —
+  // both Set-Cookie headers coexist — so this removes the stale one that
+  // would otherwise also ride along in the request's Cookie header and
+  // could be the value the backend validates against. Safe because the
+  // token is not auth state; it's regenerated on this same response.
+  if (process.env.COOKIE_DOMAIN && req.cookies['csrf-token']) {
+    res.clearCookie('csrf-token', { path: '/' });
+  }
   generateCsrfToken(req, res);
   next();
 });
