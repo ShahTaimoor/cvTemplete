@@ -14,7 +14,14 @@ export const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
   getSessionIdentifier: () => 'csrf',
   cookieName: 'csrf-token',
   cookieOptions: {
-    sameSite: 'lax',
+    // 'lax' cookies aren't sent on cross-site fetch/XHR at all, which is
+    // invisible in local dev (Vite's proxy makes frontend+backend look
+    // same-origin) but breaks every write request once they're on separate
+    // real domains in production. 'none' is required for a genuinely
+    // cross-origin cookie to be sent back — browsers only accept
+    // SameSite=None paired with Secure, which is exactly what `secure`
+    // below already evaluates to in production.
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
     secure: process.env.NODE_ENV === 'production',
     // Must be JS-readable — the frontend reads this cookie directly and

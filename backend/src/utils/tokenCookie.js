@@ -11,7 +11,12 @@ const parseDurationMs = (value) => {
 const cookieOptions = () => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  // Same cross-origin reasoning as the CSRF cookie (see config/csrf.js):
+  // 'lax' is silently never sent back once frontend and backend are on
+  // separate real domains in production, which would make login appear to
+  // succeed (the Set-Cookie response looks fine) while every subsequent
+  // authenticated request is actually anonymous.
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   path: '/',
   maxAge: parseDurationMs(process.env.JWT_EXPIRES_IN),
 });
