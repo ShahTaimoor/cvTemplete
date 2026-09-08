@@ -23,6 +23,13 @@ export const { doubleCsrfProtection, generateCsrfToken } = doubleCsrf({
     // below already evaluates to in production.
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
+    // When the frontend and API are served from different subdomains (e.g.
+    // cv.example.com and apicv.example.com), this cookie must be scoped to
+    // the shared parent domain (COOKIE_DOMAIN=.example.com) — otherwise it's
+    // host-only for the API and the frontend's document.cookie can't read it
+    // to echo the token back in the x-csrf-token header, so every write 403s.
+    // Leave unset for same-origin deploys.
+    domain: process.env.COOKIE_DOMAIN || undefined,
     secure: process.env.NODE_ENV === 'production',
     // Must be JS-readable — the frontend reads this cookie directly and
     // echoes its value back as the x-csrf-token header (double-submit).

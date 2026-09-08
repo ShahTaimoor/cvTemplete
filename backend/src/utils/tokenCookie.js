@@ -18,6 +18,9 @@ const cookieOptions = () => ({
   // authenticated request is actually anonymous.
   sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   path: '/',
+  // Same cross-subdomain reasoning as the CSRF cookie (see config/csrf.js).
+  // Kept in sync so clearTokenCookie targets the same cookie it set.
+  domain: process.env.COOKIE_DOMAIN || undefined,
   maxAge: parseDurationMs(process.env.JWT_EXPIRES_IN),
 });
 
