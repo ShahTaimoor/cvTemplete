@@ -141,7 +141,18 @@ export const coverLetterAPI = {
 export const subscriptionAPI = {
   plans: () => api.get('/subscriptions/plans'),
   current: () => api.get('/subscriptions/current'),
+  // Only 'free' is accepted here now — paid plans go through requestPlan().
   upgrade: (planId) => api.post('/subscriptions/upgrade', { planId }),
+  requestPlan: (planId, reference, receiptUrl) =>
+    api.post('/subscriptions/request', { planId, reference, receiptUrl }),
+  myRequest: () => api.get('/subscriptions/request/mine'),
+};
+
+export const adminAPI = {
+  purchaseRequests: (status) => api.get('/admin/purchase-requests', { params: { status } }),
+  purchaseRequestCount: () => api.get('/admin/purchase-requests/count'),
+  approveRequest: (id) => api.post(`/admin/purchase-requests/${id}/approve`),
+  rejectRequest: (id, note) => api.post(`/admin/purchase-requests/${id}/reject`, { note }),
 };
 
 export const uploadAPI = {
@@ -149,6 +160,13 @@ export const uploadAPI = {
     const form = new FormData();
     form.append('photo', file);
     return api.post('/upload/photo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  receipt: (file) => {
+    const form = new FormData();
+    form.append('receipt', file);
+    return api.post('/upload/receipt', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

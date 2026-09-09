@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft, ShieldCheck } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
+import { adminAPI } from '../../services/api';
 import { overlayFade, drawerPanel, DURATION, EASE } from '../../lib/motion';
 import HamburgerIcon from '../common/HamburgerIcon';
 import DashboardGridIcon from '../common/DashboardGridIcon';
@@ -30,6 +31,9 @@ function FileTextNavIcon({ size }) {
 function MailNavIcon({ size }) {
   return <Mail size={size} />;
 }
+function ShieldCheckNavIcon({ size }) {
+  return <ShieldCheck size={size} />;
+}
 
 const NAV = [
   { to: '/dashboard', label: 'My Dashboard', icon: DashboardGridIcon },
@@ -37,6 +41,9 @@ const NAV = [
   { to: '/cover-letters', label: 'My Cover Letters', icon: MailNavIcon },
   { to: '/pricing', label: 'Plans & Pricing', icon: CreditCardShineIcon },
 ];
+
+// Appended to NAV only for super-admin accounts (see DashboardLayout).
+const ADMIN_NAV = { to: '/admin/purchase-requests', label: 'Purchase Requests', icon: ShieldCheckNavIcon };
 
 // Keeps an element's live getBoundingClientRect in sync — used to position
 // portaled UI (the collapse toggle, collapsed-rail tooltips) against a real
@@ -120,7 +127,7 @@ function CollapsibleLabel({ collapsed, maxWidth = 160, className = '', children 
 // row/button/badge — not just the icon's own small bounding box — so
 // hovering anywhere on the control triggers its animation, matching how
 // these rows already highlight via their own hover: background classes.
-function NavItem({ to, label, Icon, active, onNavigate, collapsed }) {
+function NavItem({ to, label, Icon, active, onNavigate, collapsed, badge = 0 }) {
   const [hovered, setHovered] = useState(false);
   const ref = useRef(null);
   return (
@@ -131,15 +138,24 @@ function NavItem({ to, label, Icon, active, onNavigate, collapsed }) {
         onClick={onNavigate}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
+        className={`relative flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
           collapsed ? 'justify-center px-2.5 py-2.5' : 'px-3 py-2.5'
         } ${active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
       >
         <Icon hovered={hovered} size={18} />
         <CollapsibleLabel collapsed={collapsed}>{label}</CollapsibleLabel>
+        {badge > 0 && !collapsed && (
+          <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+        {badge > 0 && collapsed && (
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-brand-600" />
+        )}
       </Link>
       <SidebarTooltip anchorRef={ref} show={collapsed && hovered}>
         {label}
+        {badge > 0 ? ` (${badge})` : ''}
       </SidebarTooltip>
     </>
   );
@@ -228,7 +244,30 @@ export default function DashboardLayout({ children, fullHeight = false }) {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
   const plan = user?.subscription?.plan || 'free';
+  const isSuperAdmin = user?.role === 'superadmin';
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  // Keep the "Purchase Requests" badge roughly current for admins: refetch on
+  // mount and whenever the route changes (so approving/rejecting on that page
+  // and navigating away updates the count).
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    adminAPI
+      .purchaseRequestCount()
+      .then(({ data }) => {
+        if (!cancelled) setPendingRequests(data?.pending || 0);
+      })
+      .catch(() => {
+        /* badge is best-effort */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuperAdmin, location.pathname]);
+
+  const navItems = isSuperAdmin ? [...NAV, ADMIN_NAV] : NAV;
   const asideRef = useRef(null);
   const asideRect = useTrackedRect(asideRef);
 
@@ -272,7 +311,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
   const renderNavAndFooter = (onNavigate, collapsed = false) => (
     <>
       <nav className={`flex-1 space-y-1 ${collapsed ? 'p-2' : 'p-4'}`}>
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <NavItem
             key={to}
             to={to}
@@ -281,6 +320,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             active={isActive(to)}
             onNavigate={onNavigate}
             collapsed={collapsed}
+            badge={to === ADMIN_NAV.to ? pendingRequests : 0}
           />
         ))}
         {location.pathname.startsWith('/builder') && (

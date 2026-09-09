@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Check, X, Sparkles, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
+import { Check, X, Sparkles, Loader2, Clock, AlertCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '../utils/plans';
-import { subscriptionAPI } from '../services/api';
+import { subscriptionAPI, uploadAPI } from '../services/api';
 import { fetchMe } from '../store/authSlice';
 import DashboardLayout from '../components/layout/DashboardLayout';
+import PlanRequestModal from '../components/pricing/PlanRequestModal';
 import Skeleton from '../components/common/Skeleton';
 import { useToast } from '../hooks/useToast';
 import { useConfirm } from '../hooks/useConfirm';
@@ -78,6 +80,29 @@ export default function PricingPage() {
   // disabled/loading state on the clicked button and the double-click guard
   // below, since `subscriptionAPI.upgrade` has no other in-flight tracking.
   const [upgradingId, setUpgradingId] = useState(null);
+  // The caller's most recent purchase request (any status), or null. Paid
+  // plans no longer activate instantly — they create a request a super admin
+  // approves, so this drives the "Pending approval" / "was rejected" states.
+  const [myRequest, setMyRequest] = useState(null);
+  // Plan id the "send a request" modal is open for, or null.
+  const [requestModalPlanId, setRequestModalPlanId] = useState(null);
+
+  const refreshMyRequest = () => {
+    if (!user) return;
+    subscriptionAPI
+      .myRequest()
+      .then(({ data }) => setMyRequest(data?.request || null))
+      .catch(() => setMyRequest(null));
+  };
+
+  useEffect(() => {
+    refreshMyRequest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
+
+  const pendingRequest = myRequest?.status === 'pending' ? myRequest : null;
+  const rejectedRequest = myRequest?.status === 'rejected' ? myRequest : null;
+  const planLabel = (id) => PLANS.find((p) => p.id === id)?.name || id;
 
   const handleDowngrade = async () => {
     const losses = getDowngradeLosses(currentPlan);
@@ -114,14 +139,30 @@ export default function PricingPage() {
       await handleDowngrade();
       return;
     }
+    if (pendingRequest) {
+      toast.error('You already have a request awaiting approval');
+      return;
+    }
+
+    // Paid plans don't activate here — the user uploads a payment screenshot
+    // and we file a request for a super admin to approve (see the modal).
+    setRequestModalPlanId(planId);
+  };
+
+  // Called by PlanRequestModal once the user has picked a screenshot. Uploads
+  // the image first, then creates the request with its URL.
+  const submitPlanRequest = async ({ file, reference }) => {
+    const planId = requestModalPlanId;
+    if (!planId) return;
     setUpgradingId(planId);
     try {
-      await subscriptionAPI.upgrade(planId);
-      dispatch(fetchMe());
-      const planName = PLANS.find((p) => p.id === planId)?.name || planId;
-      toast.success(`Upgraded to ${planName} successfully!`);
+      const { data } = await uploadAPI.receipt(file);
+      await subscriptionAPI.requestPlan(planId, reference, data?.url);
+      toast.success('Request sent — your plan starts once an admin approves it.');
+      setRequestModalPlanId(null);
+      refreshMyRequest();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Upgrade failed');
+      toast.error(err.response?.data?.message || 'Could not send request');
     } finally {
       setUpgradingId(null);
     }
@@ -174,12 +215,37 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {/* Purchase-request status */}
+      {pendingRequest && (
+        <div className="max-w-3xl mx-auto mb-8 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <Clock size={18} className="mt-0.5 shrink-0" />
+          <p>
+            Your <strong>{planLabel(pendingRequest.plan)}</strong> request is awaiting admin
+            approval. Your plan will start automatically once it&apos;s approved.
+          </p>
+        </div>
+      )}
+      {!pendingRequest && rejectedRequest && (
+        <div className="max-w-3xl mx-auto mb-8 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+          <p>
+            Your <strong>{planLabel(rejectedRequest.plan)}</strong> request was declined
+            {rejectedRequest.reviewNote ? `: "${rejectedRequest.reviewNote}"` : '.'} You can submit a
+            new request below.
+          </p>
+        </div>
+      )}
+
       {/* Plan cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-5 items-stretch mb-16 lg:mb-20">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id;
           const isPopular = plan.popular;
           const isBusy = upgradingId === plan.id;
+          const isPaid = plan.price > 0;
+          const isPendingThis = isPaid && pendingRequest?.plan === plan.id;
+          const isPendingElsewhere = isPaid && pendingRequest && pendingRequest.plan !== plan.id;
+          const disabled = isCurrent || !!upgradingId || isPendingThis || isPendingElsewhere;
           return (
             <div
               key={plan.id}
@@ -225,26 +291,31 @@ export default function PricingPage() {
 
               <button
                 type="button"
-                disabled={isCurrent || !!upgradingId}
+                disabled={disabled}
                 onClick={() => handleUpgrade(plan.id)}
                 className={
-                  isCurrent
-                    ? 'w-full py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-sm cursor-default'
+                  isCurrent || isPendingThis
+                    ? 'w-full py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-sm cursor-default flex items-center justify-center gap-2'
                     : isPopular
                       ? 'app-btn-primary w-full !py-3 !rounded-xl gap-2 disabled:opacity-50'
                       : 'app-btn-secondary w-full !py-3 !rounded-xl gap-2 disabled:opacity-50'
                 }
               >
                 {isBusy && <Loader2 size={16} className="animate-spin" />}
+                {isPendingThis && !isBusy && <Clock size={15} />}
                 {isCurrent
                   ? 'Current plan'
-                  : isBusy
-                    ? plan.price === 0
-                      ? 'Downgrading...'
-                      : 'Upgrading...'
-                    : plan.price === 0
-                      ? 'Get started free'
-                      : 'Upgrade now'}
+                  : isPendingThis
+                    ? 'Pending approval'
+                    : isBusy
+                      ? plan.price === 0
+                        ? 'Downgrading...'
+                        : 'Sending...'
+                      : isPendingElsewhere
+                        ? 'Request pending'
+                        : plan.price === 0
+                          ? 'Get started free'
+                          : 'Request upgrade'}
               </button>
             </div>
           );
@@ -305,7 +376,8 @@ export default function PricingPage() {
       </div>
 
       <p className="text-center text-xs text-slate-500 mt-6 max-w-xl mx-auto leading-relaxed">
-        Prices shown in PKR (Rs.). Demo upgrades apply instantly; connect your payment provider for live billing.
+        Prices shown in PKR (Rs.). Pay by bank transfer, upload the screenshot with your request, and
+        an admin verifies it and activates your plan. Downgrading to Free is instant.
       </p>
 
       {!user && (
@@ -316,6 +388,22 @@ export default function PricingPage() {
           — no card required to start.
         </p>
       )}
+
+      <AnimatePresence>
+        {requestModalPlanId && (
+          <PlanRequestModal
+            planName={planLabel(requestModalPlanId)}
+            amountLabel={`${formatPlanPrice(
+              PLANS.find((p) => p.id === requestModalPlanId)?.price || 0
+            )} / ${BILLING_PERIOD_LABEL}`}
+            submitting={!!upgradingId}
+            onClose={() => {
+              if (!upgradingId) setRequestModalPlanId(null);
+            }}
+            onSubmit={submitPlanRequest}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 

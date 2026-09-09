@@ -37,4 +37,17 @@ export const uploadThumbnail = async (filePath) => {
   return result.secure_url;
 };
 
+// Payment screenshots attached to a plan purchase request. Uploaded as-is
+// (no face crop) to their own folder so a super admin can eyeball the
+// transfer before approving.
+export const uploadReceipt = async (filePath) => {
+  if (!configured) {
+    throw new Error('Cloudinary is not configured');
+  }
+  const result = await cloudinary.uploader.upload(filePath, {
+    folder: 'cv-builder/receipts',
+  });
+  return result.secure_url;
+};
+
 export const isCloudinaryConfigured = () => configured;

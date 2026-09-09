@@ -19,6 +19,15 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// Gate for the admin surface — must run after `protect`, which loads the
+// full user document (minus password), so `req.user.role` is populated.
+export const requireSuperAdmin = (req, res, next) => {
+  if (req.user?.role !== 'superadmin') {
+    return res.status(403).json({ message: 'Admin access only' });
+  }
+  next();
+};
+
 export const optionalAuth = async (req, res, next) => {
   const token = req.cookies?.[TOKEN_COOKIE_NAME];
   if (token) {

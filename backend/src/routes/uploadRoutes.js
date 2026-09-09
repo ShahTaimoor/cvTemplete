@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { protect } from '../middleware/auth.js';
-import { uploadImage, isCloudinaryConfigured } from '../services/cloudinaryService.js';
+import { uploadImage, uploadReceipt, isCloudinaryConfigured } from '../services/cloudinaryService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,32 +78,42 @@ const upload = multer({
 
 const router = express.Router();
 
-router.post('/photo', protect, upload.single('photo'), asyncHandler(async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
-  }
-
-  // fileFilter only checked the client-reported Content-Type. Verify the
-  // bytes actually on disk are a real image of an allowed type before doing
-  // anything else with the file (e.g. before ever handing it to Cloudinary
-  // or serving it back from /uploads).
-  const realType = detectRealImageType(req.file.path);
-  if (!realType) {
-    fs.unlinkSync(req.file.path);
-    return res.status(400).json({ message: 'File content does not match an allowed image type' });
-  }
-
-  try {
-    if (isCloudinaryConfigured()) {
-      const url = await uploadImage(req.file.path);
-      fs.unlinkSync(req.file.path);
-      return res.json({ url });
+// Shared handler for the single-image upload endpoints below. `cloudUploader`
+// is the cloudinaryService function to use when Cloudinary is configured
+// (they differ only in transform/folder); the local-disk fallback is
+// identical for all of them.
+const handleImageUpload = (cloudUploader) =>
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
     }
-    const localUrl = `/uploads/${req.file.filename}`;
-    res.json({ url: localUrl, note: 'Local storage — configure Cloudinary for production' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-}));
+
+    // fileFilter only checked the client-reported Content-Type. Verify the
+    // bytes actually on disk are a real image of an allowed type before doing
+    // anything else with the file (e.g. before ever handing it to Cloudinary
+    // or serving it back from /uploads).
+    const realType = detectRealImageType(req.file.path);
+    if (!realType) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ message: 'File content does not match an allowed image type' });
+    }
+
+    try {
+      if (isCloudinaryConfigured()) {
+        const url = await cloudUploader(req.file.path);
+        fs.unlinkSync(req.file.path);
+        return res.json({ url });
+      }
+      const localUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: localUrl, note: 'Local storage — configure Cloudinary for production' });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+router.post('/photo', protect, upload.single('photo'), handleImageUpload(uploadImage));
+
+// Payment screenshot for a plan purchase request (see subscriptionRoutes.js).
+router.post('/receipt', protect, upload.single('receipt'), handleImageUpload(uploadReceipt));
 
 export default router;

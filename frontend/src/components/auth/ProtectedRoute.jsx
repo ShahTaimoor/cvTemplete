@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, requireSuperAdmin = false }) {
   const { user, authChecked } = useSelector((s) => s.auth);
   if (!authChecked) {
     return (
@@ -11,5 +11,8 @@ export default function ProtectedRoute({ children }) {
     );
   }
   if (!user) return <Navigate to="/login" replace />;
+  if (requireSuperAdmin && user.role !== 'superadmin') {
+    return <Navigate to="/dashboard" replace />;
+  }
   return children;
 }

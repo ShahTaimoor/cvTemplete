@@ -12,6 +12,7 @@ import authRoutes from './routes/authRoutes.js';
 import templateRoutes from './routes/templateRoutes.js';
 import resumeRoutes from './routes/resumeRoutes.js';
 import subscriptionRoutes from './routes/subscriptionRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import printRoutes from './routes/printRoutes.js';
@@ -82,7 +83,7 @@ app.get('/api', (_req, res) => {
   res.json({
     status: 'ok',
     message: 'CV Builder API is running',
-    endpoints: ['/api/health', '/api/auth', '/api/templates', '/api/resumes', '/api/subscriptions', '/api/upload', '/api/public', '/api/print', '/api/cover-letters'],
+    endpoints: ['/api/health', '/api/auth', '/api/templates', '/api/resumes', '/api/subscriptions', '/api/admin', '/api/upload', '/api/public', '/api/print', '/api/cover-letters'],
   });
 });
 
@@ -104,6 +105,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/print', printRoutes);

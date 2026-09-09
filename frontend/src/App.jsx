@@ -22,6 +22,7 @@ import CoverLetterSharePage from './pages/CoverLetterSharePage';
 import PrintPage from './pages/PrintPage';
 import CoverLetterPrintPage from './pages/CoverLetterPrintPage';
 import CoverLetterPage from './pages/CoverLetterPage';
+import AdminPurchaseRequestsPage from './pages/AdminPurchaseRequestsPage';
 
 function PageTransition({ children }) {
   return (
@@ -46,6 +47,7 @@ function AppRoutes() {
       location.pathname === '/resumes' ||
       location.pathname === '/cover-letters' ||
       location.pathname === '/pricing' ||
+      location.pathname.startsWith('/admin') ||
       location.pathname.startsWith('/builder') ||
       location.pathname.startsWith('/cover-letter'));
 
@@ -114,6 +116,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <PageTransition><BuilderPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/purchase-requests"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <PageTransition><AdminPurchaseRequestsPage /></PageTransition>
               </ProtectedRoute>
             }
           />
