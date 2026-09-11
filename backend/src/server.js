@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initSentry, captureException, setupExpressErrorHandler } from './config/sentry.js';
 import { connectDB } from './config/db.js';
+import { ensureSuperAdmin } from './utils/ensureSuperAdmin.js';
 import { securityMiddleware, apiLimiter } from './middleware/security.js';
 import { doubleCsrfProtection, generateCsrfToken } from './config/csrf.js';
 import authRoutes from './routes/authRoutes.js';
@@ -145,7 +146,9 @@ await initSentry();
 // Mongo is up just waits briefly instead of failing outright.
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-connectDB().catch((err) => {
-  console.error('DB connection failed:', err.message);
-  process.exit(1);
-});
+connectDB()
+  .then(() => ensureSuperAdmin())
+  .catch((err) => {
+    console.error('DB connection failed:', err.message);
+    process.exit(1);
+  });
