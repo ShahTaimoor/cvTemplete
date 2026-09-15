@@ -38,7 +38,15 @@ export async function launchPrintPage(resourceId, userId, viewport, kind = 'resu
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // --disable-dev-shm-usage: most containerized hosts (Render, Railway,
+    // Docker generally) cap /dev/shm at 64MB. A screenshot only rasterizes
+    // one viewport and stays under that, but the PDF print pipeline lays
+    // out and rasterizes the *whole* paginated document at once — enough
+    // to blow past 64MB and crash the renderer (surfaces as a generic 500
+    // from the /pdf route while thumbnails keep working fine). This flag
+    // makes Chromium write that shared memory to /tmp instead, which is
+    // slower but not capacity-limited the same way.
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
   });
   const page = await browser.newPage();
   await page.setViewport(viewport);
