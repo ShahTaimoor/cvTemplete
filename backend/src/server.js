@@ -1,4 +1,13 @@
-import dotenv from 'dotenv';
+// Must be the very first import: ES modules hoist and execute all static
+// imports before any of this file's own top-level code runs (including a
+// later `dotenv.config()` call) — so a route import below that transitively
+// pulls in a module reading `process.env.FOO` at its own top level (e.g.
+// printBrowser.js's FRONTEND_URL constant) would otherwise see that env var
+// as still unset and permanently lock in its fallback default for the life
+// of the process, no matter what's actually in .env. The 'dotenv/config'
+// subpath runs dotenv.config() as an import-time side effect, so putting it
+// first guarantees process.env is populated before anything else loads.
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -18,8 +27,6 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import printRoutes from './routes/printRoutes.js';
 import coverLetterRoutes from './routes/coverLetterRoutes.js';
-
-dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
