@@ -49,7 +49,7 @@ export async function generateAndSaveThumbnail(Model, doc, userId, generateFn) {
   inFlight.add(key);
   try {
     const buffer = await generateFn(doc._id, userId);
-    const url = await saveThumbnail(buffer);
+    const url = await saveThumbnail(buffer, key);
     await Model.findByIdAndUpdate(doc._id, {
       thumbnailUrl: url,
       thumbnailGeneratedAt: new Date(),
@@ -145,13 +145,20 @@ async function captureThumbnail(resourceId, userId, kind) {
 // and cleaned up when it is. Generic over content type — nothing here is
 // resume-specific, so both generateResumeThumbnail and
 // generateCoverLetterThumbnail's output goes through this same save step.
-export async function saveThumbnail(buffer) {
-  const filename = `thumb-${uuidv4()}.png`;
+//
+// `key` (e.g. "Resume:<id>") is turned into a deterministic filename/
+// Cloudinary public_id instead of a fresh uuid per call — see uploadThumbnail
+// for why: a random name per regeneration orphaned the previous asset
+// instead of replacing it, leaking storage on every autosave cycle. Falls
+// back to a uuid only for a caller that doesn't have a stable key.
+export async function saveThumbnail(buffer, key) {
+  const slug = key ? key.replace(/[^a-zA-Z0-9]/g, '-') : uuidv4();
+  const filename = `thumb-${slug}.png`;
   const filePath = path.join(uploadDir, filename);
   fs.writeFileSync(filePath, buffer);
 
   if (isCloudinaryConfigured()) {
-    const url = await uploadThumbnail(filePath);
+    const url = await uploadThumbnail(filePath, `thumb-${slug}`);
     fs.unlinkSync(filePath);
     return url;
   }

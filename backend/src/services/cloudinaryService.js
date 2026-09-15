@@ -27,12 +27,23 @@ export const uploadImage = async (filePath) => {
 // Resume thumbnails are already rendered at their target size by Puppeteer
 // (see thumbnailService.js) — no face-crop/fill transform needed here, just
 // upload as-is to a separate folder from user-uploaded profile photos.
-export const uploadThumbnail = async (filePath) => {
+//
+// publicId is deterministic (keyed by the owning document's own _id, set by
+// the caller) rather than left to Cloudinary's default random one: a
+// document's thumbnail regenerates repeatedly over its life (every autosave
+// cooldown window), and without a fixed id each regeneration uploaded a
+// brand-new asset while the old one sat there orphaned forever — silent,
+// unbounded storage growth with no cleanup path. Uploading to the same
+// public_id overwrites the previous asset in place instead.
+export const uploadThumbnail = async (filePath, publicId) => {
   if (!configured) {
     throw new Error('Cloudinary is not configured');
   }
   const result = await cloudinary.uploader.upload(filePath, {
     folder: 'cv-builder/thumbnails',
+    public_id: publicId,
+    overwrite: true,
+    invalidate: true,
   });
   return result.secure_url;
 };
