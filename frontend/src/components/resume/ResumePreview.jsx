@@ -96,7 +96,7 @@ export default function ResumePreview({ resume, templateSlug }) {
 
       {/* Copy fixed at true page width, used only to measure total content height. */}
       <div style={{ height: 0, overflow: 'hidden' }} aria-hidden="true">
-        <div ref={measureRef} className="w-[210mm]">
+        <div ref={measureRef} className="w-[210mm] resume-wrap">
           {content}
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function ResumePreview({ resume, templateSlug }) {
             {Array.from({ length: pageCount }).map((_, i) => (
               <div
                 key={i}
-                className="relative bg-white shadow-2xl rounded-sm overflow-hidden w-[210mm] h-[297mm] shrink-0"
+                className="resume-wrap relative bg-white shadow-2xl rounded-sm overflow-hidden w-[210mm] h-[297mm] shrink-0"
                 style={{ fontFamily: style.font, color: '#1f2937', background: style.bg }}
               >
                 <div style={{ position: 'absolute', top: `-${i * A4_HEIGHT_MM}mm`, left: 0, width: '100%' }}>

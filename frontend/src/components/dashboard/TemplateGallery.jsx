@@ -45,14 +45,21 @@ export default function TemplateGallery({
 
   useEffect(() => {
     if (!showCountries) return undefined;
-    const onDown = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowCountries(false);
-    };
+
+    // Freeze every scrollable ancestor (the modal body, the page) while the
+    // dropdown is open; the dropdown's own list keeps scrolling normally.
+    const locked = [document.body];
+    for (let el = dropdownRef.current?.parentElement; el; el = el.parentElement) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === 'auto' || overflowY === 'scroll') locked.push(el);
+    }
+    const previous = locked.map((el) => el.style.overflow);
+    locked.forEach((el) => { el.style.overflow = 'hidden'; });
+
     const onKey = (e) => e.key === 'Escape' && setShowCountries(false);
-    document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', onDown);
+      locked.forEach((el, i) => { el.style.overflow = previous[i]; });
       document.removeEventListener('keydown', onKey);
     };
   }, [showCountries]);
@@ -121,16 +128,26 @@ export default function TemplateGallery({
 
           {showCountries && (
             <div className="absolute right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl">
-              <div className="p-2 border-b border-slate-100 relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Search country..."
-                  value={countrySearch}
-                  onChange={(e) => setCountrySearch(e.target.value)}
-                  className="app-input !py-1.5 pl-8 text-sm w-full"
-                />
+              <div className="p-2 border-b border-slate-100 flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Search country..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    className="app-input !py-1.5 pl-8 text-sm w-full"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setShowCountries(false); setCountrySearch(''); }}
+                  aria-label="Close country filter"
+                  className="shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                >
+                  <X size={16} />
+                </button>
               </div>
               <div role="listbox" className="max-h-64 overflow-y-auto p-1">
                 {visibleCountries.length === 0 ? (

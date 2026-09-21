@@ -110,6 +110,14 @@ body {
   background-color: var(--color-brass);
 }
 
+/* Long unbroken text (a URL, or "aaaa…" with no spaces) would otherwise
+   overflow the page. overflow-wrap is inherited, so setting it on the page
+   containers makes every layout wrap it onto the next line. */
+.resume-preview-root,
+.resume-wrap {
+  overflow-wrap: anywhere;
+}
+
 .resume-preview-root {
   --resume-primary: #2563eb;
   --resume-secondary: #1e40af;
