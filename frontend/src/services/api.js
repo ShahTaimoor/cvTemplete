@@ -111,7 +111,6 @@ export const resumeAPI = {
   versions: (id) => api.get(`/resumes/${id}/versions`),
   saveVersion: (id, data) => api.post(`/resumes/${id}/versions`, data),
   restoreVersion: (id, versionId) => api.post(`/resumes/${id}/versions/${versionId}/restore`),
-  docx: (id) => api.post(`/resumes/${id}/docx`, {}, { responseType: 'blob' }),
   pdf: (id) => api.post(`/resumes/${id}/pdf`, {}, { responseType: 'blob' }),
   atsCheck: (id) => api.post(`/resumes/${id}/ats-check`),
   share: (id) => api.post(`/resumes/${id}/share`),
