@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, X, Globe } from 'lucide-react';
+import { Search, X, Globe, ChevronDown } from 'lucide-react';
 import {
   TEMPLATE_FILTERS,
   COUNTRY_FILTERS,
@@ -33,6 +33,8 @@ export default function TemplateGallery({
   const [search, setSearch] = useState('');
   const [previewSlug, setPreviewSlug] = useState(null);
   const [showCountries, setShowCountries] = useState(false);
+  const [countrySearch, setCountrySearch] = useState('');
+  const dropdownRef = useRef(null);
   const [page, setPage] = useState(1);
   const gridTopRef = useRef(null);
 
@@ -40,6 +42,25 @@ export default function TemplateGallery({
     () => filterTemplates(templates, filter, search, countryFilter, regionFilter, planFilter),
     [templates, filter, search, countryFilter, regionFilter, planFilter]
   );
+
+  useEffect(() => {
+    if (!showCountries) return undefined;
+    const onDown = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowCountries(false);
+    };
+    const onKey = (e) => e.key === 'Escape' && setShowCountries(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showCountries]);
+
+  const visibleCountries = useMemo(() => {
+    const q = countrySearch.trim().toLowerCase();
+    return q ? COUNTRY_FILTERS.filter((f) => f.label.toLowerCase().includes(q)) : COUNTRY_FILTERS;
+  }, [countrySearch]);
 
   useEffect(() => {
     setPage(1);
@@ -79,70 +100,92 @@ export default function TemplateGallery({
             className="app-input !py-2 pl-9 text-sm"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCountries((v) => !v)}
-          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border shrink-0 ${
-            showCountries || countryFilter !== 'all'
-              ? 'bg-brand-600 text-white border-brand-600'
-              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-          }`}
-        >
-          <Globe size={14} />
-          {countryFilter !== 'all'
-            ? COUNTRY_FILTERS.find((f) => f.id === countryFilter)?.label
-            : 'Filter by country'}
-        </button>
+        <div className="relative shrink-0" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setShowCountries((v) => !v)}
+            aria-haspopup="listbox"
+            aria-expanded={showCountries}
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border w-full sm:w-auto ${
+              showCountries || countryFilter !== 'all'
+                ? 'bg-brand-600 text-white border-brand-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <Globe size={14} />
+            {countryFilter !== 'all'
+              ? COUNTRY_FILTERS.find((f) => f.id === countryFilter)?.label
+              : 'Filter by country'}
+            <ChevronDown size={14} className={`transition ${showCountries ? 'rotate-180' : ''}`} />
+          </button>
+
+          {showCountries && (
+            <div className="absolute right-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200 bg-white shadow-xl">
+              <div className="p-2 border-b border-slate-100 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search country..."
+                  value={countrySearch}
+                  onChange={(e) => setCountrySearch(e.target.value)}
+                  className="app-input !py-1.5 pl-8 text-sm w-full"
+                />
+              </div>
+              <div role="listbox" className="max-h-64 overflow-y-auto p-1">
+                {visibleCountries.length === 0 ? (
+                  <p className="px-3 py-4 text-xs text-slate-500 text-center">No countries found</p>
+                ) : (
+                  visibleCountries.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="option"
+                      aria-selected={countryFilter === f.id}
+                      onClick={() => {
+                        setCountryFilter(f.id);
+                        if (f.id !== 'all') setFilter('regional');
+                        setShowCountries(false);
+                        setCountrySearch('');
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-sm ${
+                        countryFilter === f.id
+                          ? 'bg-brand-600 text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {showCountries && (
-        <div className="mb-3 p-3 rounded-xl border border-slate-200 bg-slate-50/80 space-y-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Region</p>
-            <div className="flex flex-wrap gap-1.5">
-              {REGION_FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => {
-                    setRegionFilter(f.id);
-                    if (f.id !== 'all') setFilter('regional');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
-                    regionFilter === f.id
-                      ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Country</p>
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-              {COUNTRY_FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => {
-                    setCountryFilter(f.id);
-                    if (f.id !== 'all') setFilter('regional');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
-                    countryFilter === f.id
-                      ? 'bg-brand-600 text-white border-brand-600'
-                      : 'bg-white text-slate-600 border-slate-200'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="mb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Region</p>
+        <div className="flex flex-wrap gap-1.5">
+          {REGION_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => {
+                setRegionFilter(f.id);
+                if (f.id !== 'all') setFilter('regional');
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${
+                regionFilter === f.id
+                  ? 'bg-brand-600 text-white border-brand-600'
+                  : 'bg-white text-slate-600 border-slate-200'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
         {TEMPLATE_FILTERS.map((f) => (
