@@ -145,6 +145,7 @@ export const subscriptionAPI = {
   requestPlan: (planId, reference, receiptUrl) =>
     api.post('/subscriptions/request', { planId, reference, receiptUrl }),
   myRequest: () => api.get('/subscriptions/request/mine'),
+  paymentMethods: () => api.get('/subscriptions/payment-methods'),
 };
 
 export const adminAPI = {
@@ -152,6 +153,10 @@ export const adminAPI = {
   purchaseRequestCount: () => api.get('/admin/purchase-requests/count'),
   approveRequest: (id) => api.post(`/admin/purchase-requests/${id}/approve`),
   rejectRequest: (id, note) => api.post(`/admin/purchase-requests/${id}/reject`, { note }),
+  paymentMethods: () => api.get('/admin/payment-methods'),
+  createPaymentMethod: (data) => api.post('/admin/payment-methods', data),
+  updatePaymentMethod: (id, data) => api.put(`/admin/payment-methods/${id}`, data),
+  deletePaymentMethod: (id) => api.delete(`/admin/payment-methods/${id}`),
 };
 
 export const uploadAPI = {

@@ -6,6 +6,7 @@ import Template from '../models/Template.js';
 import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
 import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAccess.js';
+import { stripPaidResumeFields } from '../utils/planLimits.js';
 import { analyzeResume } from '../services/atsService.js';
 import { generateResumePdf } from '../services/pdfService.js';
 import { generateResumeThumbnail, generateAndSaveThumbnail, fulfillIfDue, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
@@ -195,7 +196,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
   const count = await Resume.countDocuments({ user: req.user._id });
   const useSample = req.body.withSampleData !== false && (count === 0 || req.body.withSampleData === true);
-  const sample = useSample ? getSampleResumePayload() : {};
+  const sample = useSample ? stripPaidResumeFields(plan, getSampleResumePayload()) : {};
 
   const resume = await Resume.create({
     user: req.user._id,
@@ -267,12 +268,13 @@ router.put('/:id', asyncHandler(async (req, res) => {
     resume.theme = { ...(resume.theme?.toObject?.() || resume.theme), ...req.body.theme };
   }
 
+  const body = stripPaidResumeFields(plan, req.body);
   const allowed = [
     'title', 'personal', 'summary', 'education', 'experience',
     'skills', 'projects', 'certifications', 'sectionOrder', 'isPublic',
   ];
   allowed.forEach((key) => {
-    if (req.body[key] !== undefined) resume[key] = req.body[key];
+    if (body[key] !== undefined) resume[key] = body[key];
   });
 
   resume.lastAutoSavedAt = new Date();

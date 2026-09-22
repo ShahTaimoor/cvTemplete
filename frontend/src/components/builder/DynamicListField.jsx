@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Lock } from 'lucide-react';
 
 export default function DynamicListField({
   title,
@@ -6,6 +6,7 @@ export default function DynamicListField({
   fields,
   onChange,
   emptyItem,
+  onLockedClick,
 }) {
   const update = (index, key, value) => {
     const next = items.map((item, i) =>
@@ -50,7 +51,10 @@ export default function DynamicListField({
           <div className="grid gap-3 sm:grid-cols-2">
             {fields.map((f) => (
               <div key={f.key} className={f.full ? 'sm:col-span-2' : ''}>
-                <label className="block text-xs text-slate-400 mb-1">{f.label}</label>
+                <label className="flex items-center gap-1 text-xs text-slate-400 mb-1">
+                  {f.label}
+                  {f.locked && <Lock size={11} className="text-amber-500" aria-label="Paid feature" />}
+                </label>
                 {f.type === 'textarea' ? (
                   <textarea
                     value={item[f.key] || ''}
@@ -64,6 +68,8 @@ export default function DynamicListField({
                       type="checkbox"
                       checked={!!item[f.key]}
                       onChange={(e) => update(index, f.key, e.target.checked)}
+                      onClick={f.locked ? (e) => { e.preventDefault(); onLockedClick?.(f.lockLabel || f.label); } : undefined}
+                      className={f.locked ? 'cursor-not-allowed opacity-60' : undefined}
                     />
                     {f.label}
                   </label>
@@ -72,7 +78,9 @@ export default function DynamicListField({
                     type={f.type || 'text'}
                     value={item[f.key] || ''}
                     onChange={(e) => update(index, f.key, e.target.value)}
-                    className="app-input text-sm"
+                    readOnly={!!f.locked}
+                    onClick={f.locked ? () => onLockedClick?.(f.lockLabel || f.label) : undefined}
+                    className={`app-input text-sm ${f.locked ? 'cursor-not-allowed bg-slate-100 text-slate-400' : ''}`}
                   />
                 )}
               </div>

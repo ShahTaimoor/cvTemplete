@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { UploadCloud, X, Loader2, FileImage } from 'lucide-react';
+import { UploadCloud, X, Loader2, FileImage, Copy, Check, Landmark, Smartphone, Wallet } from 'lucide-react';
 import { overlayFade, modalCard } from '../../lib/motion';
+import { subscriptionAPI } from '../../services/api';
+import { paymentMethodTitle } from '../../utils/paymentMethods';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const TYPE_ICON = { easypaisa: Smartphone, jazzcash: Smartphone, bank: Landmark, other: Wallet };
 
 /**
  * Collects the payment screenshot (required) plus an optional transaction
@@ -24,6 +27,34 @@ export default function PlanRequestModal({
   const [reference, setReference] = useState('');
   const [error, setError] = useState('');
   const inputRef = useRef(null);
+  const [methods, setMethods] = useState([]);
+  const [copiedId, setCopiedId] = useState(null);
+
+  // The accounts the admin set up under Payment Settings.
+  useEffect(() => {
+    let cancelled = false;
+    subscriptionAPI
+      .paymentMethods()
+      .then(({ data }) => {
+        if (!cancelled) setMethods(data?.methods || []);
+      })
+      .catch(() => {
+        /* the text below still tells the user what to do */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const copyNumber = async (method) => {
+    try {
+      await navigator.clipboard.writeText(method.accountNumber);
+      setCopiedId(method._id);
+      setTimeout(() => setCopiedId((id) => (id === method._id ? null : id)), 1500);
+    } catch {
+      /* clipboard blocked — the number is still visible to copy by hand */
+    }
+  };
 
   // Body does no setState (lint-safe); it just revokes the object URL created
   // in pickFile() when it's replaced or the modal unmounts.
@@ -101,10 +132,39 @@ export default function PlanRequestModal({
           </button>
         </div>
         <p className="text-sm text-slate-600 mb-4">
-          Transfer {amountLabel ? <strong>{amountLabel}</strong> : 'the payment'} to the bank account
-          shared with you, then upload the transfer screenshot below. An admin verifies it and your
-          plan starts once approved.
+          Transfer {amountLabel ? <strong>{amountLabel}</strong> : 'the payment'}{' '}
+          {methods.length ? 'to one of the accounts below' : 'to the account shared with you'}, then upload the
+          transfer screenshot. An admin verifies it and your plan starts once approved.
         </p>
+
+        {methods.length > 0 && (
+          <ul className="space-y-2 mb-4">
+            {methods.map((m) => {
+              const Icon = TYPE_ICON[m.type] || Wallet;
+              return (
+                <li key={m._id} className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="h-9 w-9 shrink-0 rounded-lg bg-white border border-slate-200 text-brand-600 flex items-center justify-center">
+                    <Icon size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{paymentMethodTitle(m)}</p>
+                    <p className="text-xs text-slate-600">{m.accountName}</p>
+                    <p className="text-sm font-mono text-slate-900 break-all">{m.accountNumber}</p>
+                    {m.note && <p className="text-xs text-slate-500 mt-0.5">{m.note}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyNumber(m)}
+                    className="shrink-0 flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
+                  >
+                    {copiedId === m._id ? <Check size={13} /> : <Copy size={13} />}
+                    {copiedId === m._id ? 'Copied' : 'Copy'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
         <form onSubmit={handleSubmit}>
           <label className="app-label">Payment screenshot</label>

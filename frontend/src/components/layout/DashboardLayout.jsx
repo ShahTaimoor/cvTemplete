@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft, ShieldCheck } from 'lucide-react';
+import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft, ShieldCheck, Landmark } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import { adminAPI } from '../../services/api';
 import { overlayFade, drawerPanel, DURATION, EASE } from '../../lib/motion';
@@ -34,6 +34,9 @@ function MailNavIcon({ size }) {
 function ShieldCheckNavIcon({ size }) {
   return <ShieldCheck size={size} />;
 }
+function LandmarkNavIcon({ size }) {
+  return <Landmark size={size} />;
+}
 
 const NAV = [
   { to: '/dashboard', label: 'My Dashboard', icon: DashboardGridIcon },
@@ -43,7 +46,11 @@ const NAV = [
 ];
 
 // Appended to NAV only for super-admin accounts (see DashboardLayout).
-const ADMIN_NAV = { to: '/admin/purchase-requests', label: 'Purchase Requests', icon: ShieldCheckNavIcon };
+const PURCHASE_REQUESTS_PATH = '/admin/purchase-requests';
+const ADMIN_NAV = [
+  { to: PURCHASE_REQUESTS_PATH, label: 'Purchase Requests', icon: ShieldCheckNavIcon },
+  { to: '/admin/payment-settings', label: 'Payment Settings', icon: LandmarkNavIcon },
+];
 
 // Keeps an element's live getBoundingClientRect in sync — used to position
 // portaled UI (the collapse toggle, collapsed-rail tooltips) against a real
@@ -267,7 +274,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
     };
   }, [isSuperAdmin, location.pathname]);
 
-  const navItems = isSuperAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const navItems = isSuperAdmin ? [...NAV, ...ADMIN_NAV] : NAV;
   const asideRef = useRef(null);
   const asideRect = useTrackedRect(asideRef);
 
@@ -320,7 +327,7 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             active={isActive(to)}
             onNavigate={onNavigate}
             collapsed={collapsed}
-            badge={to === ADMIN_NAV.to ? pendingRequests : 0}
+            badge={to === PURCHASE_REQUESTS_PATH ? pendingRequests : 0}
           />
         ))}
         {location.pathname.startsWith('/builder') && (

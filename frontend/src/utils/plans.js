@@ -54,3 +54,7 @@ export const PLANS = [
 ];
 
 export const canCustomizeColors = (plan) => ['pro', 'premium'].includes(plan);
+
+// Photo, email, phone, links, job/education dates and project/certification
+// URLs are paid-only; the API enforces the same rule.
+export const canUsePaidFields = (plan) => ['basic', 'pro', 'premium'].includes(plan);

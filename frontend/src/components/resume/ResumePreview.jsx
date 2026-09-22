@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { getResumeStyle, getPreviewVariant } from '../../config/templates';
 import { renderLayout } from './ResumeLayouts';
+import { applyKeepTogether } from '../../utils/keepTogether';
 
 // Keep in sync with A4_WIDTH_MM / A4_HEIGHT_MM in ../../utils/exportPreview.js
 const A4_WIDTH_MM = 210;
@@ -18,7 +19,15 @@ export default function ResumePreview({ resume, templateSlug }) {
   const content = resume ? renderLayout(style.layout, { resume, style, variant }) : null;
 
   const measureRef = useRef(null);
+  const scaleWrapperRef = useRef(null);
   const [pageCount, setPageCount] = useState(1);
+
+  // Keeps blocks whole across page breaks: measured on the flowing copy, then
+  // mirrored onto the visible page copies (see utils/keepTogether.js).
+  const applyBreaks = () => {
+    const pages = scaleWrapperRef.current?.querySelectorAll('[data-page-content]') ?? [];
+    applyKeepTogether(measureRef.current, [...pages], A4_HEIGHT_MM * MM_TO_PX);
+  };
 
   useLayoutEffect(() => {
     const el = measureRef.current;
@@ -28,6 +37,7 @@ export default function ResumePreview({ resume, templateSlug }) {
     const tolerancePx = PAGE_HEIGHT_TOLERANCE_MM * MM_TO_PX;
 
     const measure = () => {
+      applyBreaks();
       const contentHeightPx = el.scrollHeight;
       const nextCount =
         contentHeightPx <= pageHeightPx + tolerancePx
@@ -44,7 +54,6 @@ export default function ResumePreview({ resume, templateSlug }) {
 
   // Scale the fixed-size pages down to fit narrower containers (e.g. the builder's
   // split-pane preview column), while the underlying page markup stays true A4 size.
-  const scaleWrapperRef = useRef(null);
   const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
@@ -64,6 +73,12 @@ export default function ResumePreview({ resume, templateSlug }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // A new page copy mounts when pageCount grows; give it the same spacing.
+  useLayoutEffect(() => {
+    applyBreaks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageCount, resume, slug]);
 
   const pageHeightPx = A4_HEIGHT_MM * MM_TO_PX;
   const totalHeightPx = pageCount * pageHeightPx + (pageCount - 1) * PAGE_GAP_PX;
@@ -119,7 +134,7 @@ export default function ResumePreview({ resume, templateSlug }) {
                 className="resume-wrap relative bg-white shadow-2xl rounded-sm overflow-hidden w-[210mm] h-[297mm] shrink-0"
                 style={{ fontFamily: style.font, color: '#1f2937', background: style.bg }}
               >
-                <div style={{ position: 'absolute', top: `-${i * A4_HEIGHT_MM}mm`, left: 0, width: '100%' }}>
+                <div data-page-content style={{ position: 'absolute', top: `-${i * A4_HEIGHT_MM}mm`, left: 0, width: '100%' }}>
                   {content}
                 </div>
               </div>

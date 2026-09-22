@@ -1,4 +1,4 @@
-import { Sections, TimelineExperience, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, SectionTitle } from './resumeSections';
+import { Sections, TimelineExperience, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, SectionTitle, skillLabel, educationDates, UrlLink } from './resumeSections';
 import { getThemedFrameBg, getThemedMutedBandStyle, getThemedCardStyles } from '../../utils/resumeThemeUtils';
 
 /* ─── Sidebar (left) — contact + skills in colored panel ─── */
@@ -88,7 +88,7 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
             <div className="mt-6">
               <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Expertise</p>
               {resume.skills.filter((s) => s.name).map((s, i) => (
-                <div key={i} className="text-[10px] py-1 border-b border-white/15">{s.name}</div>
+                <div key={i} className="text-[10px] py-1 border-b border-white/15">{skillLabel(s)}</div>
               ))}
             </div>
           )}
@@ -99,6 +99,7 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
                 <div key={i} className="text-[10px] mb-2 opacity-95">
                   <div className="font-semibold">{e.degree}</div>
                   <div className="opacity-80">{e.institution}</div>
+                  {educationDates(e) && <div className="opacity-70">{educationDates(e)}</div>}
                 </div>
               ))}
             </div>
@@ -496,7 +497,10 @@ export const NarrowRightLayout = ({ resume, style }) => {
           <div className="mt-5">
             <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Certs</p>
             {resume.certifications.map((c, i) => (
-              <div key={i} className="text-[10px] text-gray-600 mb-1">{c.name}</div>
+              <div key={i} className="text-[10px] text-gray-600 mb-1">
+                {c.name}
+                {c.url && <div><UrlLink url={c.url} className="underline" style={{ color: style.primary }} /></div>}
+              </div>
             ))}
           </div>
         )}
@@ -540,6 +544,7 @@ export const InfographicLayout = ({ resume, style }) => {
                 <div key={i} className="text-[10px] mb-2">
                   <div className="font-semibold">{e.degree}</div>
                   <div className="text-gray-500">{e.institution}</div>
+                  {educationDates(e) && <div className="text-gray-400">{educationDates(e)}</div>}
                 </div>
               ))}
             </div>
@@ -888,7 +893,7 @@ export const NewspaperLayout = ({ resume, style }) => {
       <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t-2" style={{ borderColor: style.primary }}>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Skills</p>
-          {skills.map((s, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{s.name}</div>)}
+          {skills.map((s, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{skillLabel(s)}</div>)}
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Education</p>
@@ -896,12 +901,18 @@ export const NewspaperLayout = ({ resume, style }) => {
             <div key={i} className="text-[10px] mb-1">
               <div className="font-semibold">{e.degree}</div>
               <div className="text-gray-500">{e.institution}</div>
+              {educationDates(e) && <div className="text-gray-400">{educationDates(e)}</div>}
             </div>
           ))}
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Certifications</p>
-          {certs.map((c, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{c.name}</div>)}
+          {certs.map((c, i) => (
+            <div key={i} className="text-[10px] text-gray-600 mb-0.5">
+              {c.name}
+              {c.url && <div><UrlLink url={c.url} className="underline" style={{ color: style.primary }} /></div>}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -930,7 +941,7 @@ export const SwissLayout = ({ resume, style }) => {
             <>
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: style.primary }}>Skills</p>
               {resume.skills.filter((s) => s.name).map((s, i) => (
-                <div key={i} className="text-[10px] mb-2 pb-2 border-b border-gray-200">{s.name}</div>
+                <div key={i} className="text-[10px] mb-2 pb-2 border-b border-gray-200">{skillLabel(s)}</div>
               ))}
             </>
           )}
@@ -1253,7 +1264,7 @@ export const SidebarBottomLayout = ({ resume, style, variant }) => {
           <div className="p-4 border-l border-white/20 min-w-[28%]">
             <p className="text-[9px] uppercase opacity-70 mb-1">Skills</p>
             {resume.skills.filter((s) => s.name).slice(0, 6).map((s, i) => (
-              <span key={i} className="inline-block text-[9px] mr-2 opacity-95">{s.name}</span>
+              <span key={i} className="inline-block text-[9px] mr-2 opacity-95">{skillLabel(s)}</span>
             ))}
           </div>
         )}
@@ -1326,6 +1337,7 @@ export const PortfolioGridLayout = ({ resume, style }) => {
             {projects.map((proj, i) => (
               <div key={i} className="p-3 rounded-lg border" style={getThemedCardStyles(style, true)}>
                 <div className="font-bold text-xs">{proj.name}</div>
+                {proj.url && <div><UrlLink url={proj.url} className="text-[9px] underline" style={{ color: style.primary }} /></div>}
                 <p className="text-[9px] mt-1" style={{ color: style.secondary }}>{proj.technologies}</p>
                 <p className="text-[9px] text-gray-600 mt-1">{proj.description}</p>
               </div>
