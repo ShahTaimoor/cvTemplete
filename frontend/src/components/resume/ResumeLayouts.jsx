@@ -400,6 +400,7 @@ export const StripeLayout = ({ resume, style }) => {
       <div className="p-8 text-white" style={{ background: style.primary }}>
         <h1 className="text-3xl font-bold">{p.fullName || 'Your Name'}</h1>
         <p className="opacity-90">{p.jobTitle}</p>
+        <p className="opacity-75 text-[10px] mt-2">{getContacts(p).join(' · ')}</p>
       </div>
       {blocks.map((b, i) => (
         <div
@@ -518,6 +519,7 @@ export const InfographicLayout = ({ resume, style }) => {
         <div className="flex-1 p-6" style={{ background: style.primary, color: '#fff' }}>
           <h1 className="text-2xl font-bold">{p.fullName || 'Your Name'}</h1>
           <p className="opacity-90">{p.jobTitle}</p>
+          <p className="opacity-75 text-[10px] mt-2">{getContacts(p).join(' · ')}</p>
         </div>
         {p.photo && (
           <img src={p.photo} alt="" className="w-28 h-full object-cover" />
@@ -692,7 +694,8 @@ export const FrameBorderLayout = ({ resume, style, variant }) => {
     <div className="p-6 min-h-[297mm]" style={{ background: style.bg, fontSize: '11px', fontFamily: style.font }}>
       <div className="p-6 h-full border-2" style={{ borderColor: style.primary }}>
         <h1 className="text-xl font-bold text-center mb-1" style={{ color: style.primary }}>{p.fullName}</h1>
-        <p className="text-center text-xs text-gray-600 mb-4">{p.jobTitle}</p>
+        <p className="text-center text-xs text-gray-600 mb-1">{p.jobTitle}</p>
+        <p className="text-center text-gray-400 text-[10px] mb-4">{getContacts(p).join(' · ')}</p>
         <Sections resume={resume} style={style} variant={variant} />
       </div>
     </div>
@@ -708,7 +711,8 @@ export const RibbonLeftLayout = ({ resume, style, variant }) => {
       <div className="w-2 shrink-0" style={{ background: style.secondary }} />
       <div className="flex-1 p-7">
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName}</h1>
-        <p className="text-sm text-gray-600 mb-4">{p.jobTitle}</p>
+        <p className="text-sm text-gray-600 mb-1">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mb-4">{getContacts(p).join(' · ')}</p>
         <Sections resume={resume} style={style} variant={variant} />
       </div>
     </div>
@@ -792,6 +796,7 @@ export const AsymmetricLayout = ({ resume, style }) => {
       <div className="px-6 py-5 border-b" style={{ borderColor: style.primary }}>
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName}</h1>
         <p className="text-gray-600">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mt-1">{getContacts(p).join(' · ')}</p>
       </div>
       <div className="flex">
         <div className="w-[68%] p-5 border-r border-gray-100">
@@ -1207,6 +1212,7 @@ export const ZigzagLayout = ({ resume, style }) => {
       <div className="px-8 py-6 text-center border-b-2" style={{ borderColor: style.primary, background: style.bg }}>
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
         <p className="text-gray-600">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mt-1">{getContacts(p).join(' · ')}</p>
       </div>
       {order.map((key, i) => (
         <div
@@ -1599,6 +1605,7 @@ export const renderLayout = (layout, props) => {
         <div className="p-8 text-center" style={{ background: style.bg, fontSize: '11px' }}>
           <h1 className="text-3xl font-light text-gray-900">{resume.personal?.fullName || 'Your Name'}</h1>
           <p className="text-gray-500 mt-1">{resume.personal?.jobTitle}</p>
+          <p className="text-gray-400 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           <div className="mt-8 text-left">
             <Sections resume={resume} style={style} variant="minimal" />
           </div>
@@ -1610,6 +1617,7 @@ export const renderLayout = (layout, props) => {
           <div className="p-8 text-white" style={{ background: style.primary }}>
             <h1 className="text-2xl font-bold">{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="opacity-90">{resume.personal?.jobTitle}</p>
+            <p className="opacity-75 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <div className="p-8"><Sections resume={resume} style={style} variant={variant} /></div>
         </div>
@@ -1620,6 +1628,7 @@ export const renderLayout = (layout, props) => {
           <div className="p-8 text-white" style={{ background: style.primary }}>
             <h1 className="text-3xl font-black">{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="text-lg opacity-90">{resume.personal?.jobTitle}</p>
+            <p className="opacity-75 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <div className="p-8"><Sections resume={resume} style={style} variant={variant} /></div>
         </div>
@@ -1630,6 +1639,7 @@ export const renderLayout = (layout, props) => {
           <div className="text-center border-b border-gray-200 pb-4 mb-6">
             <h1 className="text-3xl" style={{ color: style.primary }}>{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="italic text-gray-600 mt-1">{resume.personal?.jobTitle}</p>
+            <p className="text-gray-400 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <Sections resume={resume} style={style} variant="elegant" />
         </div>
@@ -1653,7 +1663,8 @@ export const renderLayout = (layout, props) => {
       return (
         <div className="p-8 font-mono" style={{ background: style.bg, fontSize: '11px' }}>
           <h1 className="text-xl font-bold mb-1" style={{ color: style.primary }}>{'>'} {resume.personal?.fullName || 'Your Name'}</h1>
-          <p className="text-gray-500 text-xs mb-4">// {resume.personal?.jobTitle}</p>
+          <p className="text-gray-500 text-xs mb-1">// {resume.personal?.jobTitle}</p>
+          <p className="text-gray-400 text-[10px] mb-4">// {getContacts(resume.personal).join(' · ')}</p>
           <Sections resume={resume} style={style} variant="minimal" />
         </div>
       );
@@ -1662,6 +1673,9 @@ export const renderLayout = (layout, props) => {
         <div className="p-8 flex gap-4" style={{ background: style.bg, fontSize: '11px' }}>
           <div className="w-1.5 rounded-full shrink-0" style={{ background: style.primary }} />
           <div className="flex-1">
+            <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{resume.personal?.fullName || 'Your Name'}</h1>
+            <p className="text-gray-600">{resume.personal?.jobTitle}</p>
+            <p className="text-gray-400 text-[10px] mt-1 mb-4">{getContacts(resume.personal).join(' · ')}</p>
             <Sections resume={resume} style={style} variant="default" />
           </div>
         </div>
