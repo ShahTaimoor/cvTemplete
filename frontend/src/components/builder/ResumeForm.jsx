@@ -10,6 +10,15 @@ import { uploadAPI } from '../../services/api';
 import { templateSupportsPhoto } from '../../config/templates';
 import { useToast } from '../../hooks/useToast';
 
+// The only personal.* fields actually bound to the form via register() below.
+// react-hook-form's watch() snapshot only ever reflects these — `photo` is
+// set directly via onUpdate in handlePhoto, so it's never part of that
+// snapshot. Merging the whole data.personal object into personal (rather
+// than picking just these keys) would carry photo's stale, empty value from
+// that snapshot and overwrite the real uploaded one the instant any other
+// field changed.
+const PERSONAL_TEXT_FIELDS = ['fullName', 'jobTitle', 'email', 'phone', 'location', 'website', 'linkedin'];
+
 // Personal fields that need a paid plan, with the name shown in the upgrade prompt.
 const PAID_PERSONAL_FIELDS = {
   email: 'Email',
@@ -35,11 +44,15 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
     const sub = watch((data) => {
       const r = resumeRef.current;
       if (!r) return;
+      const personalUpdates = {};
+      PERSONAL_TEXT_FIELDS.forEach((field) => {
+        if (data.personal?.[field] !== undefined) personalUpdates[field] = data.personal[field];
+      });
       onUpdate({
         ...r,
         title: data.title ?? r.title,
         summary: data.summary ?? r.summary,
-        personal: { ...r.personal, ...(data.personal || {}) },
+        personal: { ...r.personal, ...personalUpdates },
       });
     });
     return () => sub.unsubscribe();
@@ -72,7 +85,7 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
       <section className="space-y-3">
         <h3 className="font-semibold text-slate-900">Personal Information</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          {['fullName', 'jobTitle', 'email', 'phone', 'location', 'website', 'linkedin'].map(
+          {PERSONAL_TEXT_FIELDS.map(
             (field) => {
               const lockLabel = PAID_PERSONAL_FIELDS[field];
               const locked = !!lockLabel && !paid;
