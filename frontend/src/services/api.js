@@ -153,6 +153,7 @@ export const adminAPI = {
   purchaseRequestCount: () => api.get('/admin/purchase-requests/count'),
   approveRequest: (id) => api.post(`/admin/purchase-requests/${id}/approve`),
   rejectRequest: (id, note) => api.post(`/admin/purchase-requests/${id}/reject`, { note }),
+  revokeRequest: (id) => api.post(`/admin/purchase-requests/${id}/revoke`),
   paymentMethods: () => api.get('/admin/payment-methods'),
   createPaymentMethod: (data) => api.post('/admin/payment-methods', data),
   updatePaymentMethod: (id, data) => api.put(`/admin/payment-methods/${id}`, data),

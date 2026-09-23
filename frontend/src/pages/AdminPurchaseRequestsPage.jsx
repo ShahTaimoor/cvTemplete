@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Check, X, Clock, RefreshCw, Inbox } from 'lucide-react';
+import { Check, X, Clock, RefreshCw, Inbox, Ban } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import Skeleton from '../components/common/Skeleton';
 import { adminAPI } from '../services/api';
@@ -92,6 +92,29 @@ export default function AdminPurchaseRequestsPage() {
       reload();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Approve failed');
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleRevoke = async (req) => {
+    const ok = await confirmDialog({
+      title: `Revoke ${req.user?.email || 'user'}'s ${req.plan.toUpperCase()} plan?`,
+      message:
+        req.user?.subscription?.plan === req.plan
+          ? `They'll be moved back to the Free plan immediately.`
+          : `They've already changed plans since this was approved, so this only records the revoke — their current plan won't change.`,
+      confirmLabel: 'Revoke',
+      destructive: true,
+    });
+    if (!ok) return;
+    setActingId(req._id);
+    try {
+      const { data } = await adminAPI.revokeRequest(req._id);
+      toast.success(data?.message || 'Revoked');
+      reload();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Revoke failed');
     } finally {
       setActingId(null);
     }
@@ -211,6 +234,11 @@ export default function AdminPurchaseRequestsPage() {
                           >
                             {req.status}
                           </span>
+                          {req.revokedAt && (
+                            <span className="ml-1.5 inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600 border-slate-200">
+                              Revoked
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-slate-700">
                           {formatPlanPrice(req.amount)}
@@ -264,6 +292,16 @@ export default function AdminPurchaseRequestsPage() {
                             </div>
                           ) : (
                             <div className="text-right text-slate-500 text-xs">
+                              {req.status === 'approved' && !req.revokedAt && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRevoke(req)}
+                                  disabled={busy}
+                                  className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  <Ban size={14} /> Revoke
+                                </button>
+                              )}
                               <div className="flex items-center justify-end gap-1">
                                 <Clock size={12} />
                                 {fmtDate(req.reviewedAt)}
@@ -273,6 +311,17 @@ export default function AdminPurchaseRequestsPage() {
                               )}
                               {req.reviewNote && (
                                 <div className="text-slate-500 mt-1 italic">“{req.reviewNote}”</div>
+                              )}
+                              {req.revokedAt && (
+                                <div className="mt-2 pt-2 border-t border-slate-100">
+                                  <div className="flex items-center justify-end gap-1 text-slate-500">
+                                    <Ban size={12} />
+                                    Revoked {fmtDate(req.revokedAt)}
+                                  </div>
+                                  {req.revokedBy?.email && (
+                                    <div className="text-slate-400">by {req.revokedBy.email}</div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           )}

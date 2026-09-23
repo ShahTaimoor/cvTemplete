@@ -22,7 +22,8 @@ router.get('/purchase-requests', asyncHandler(async (req, res) => {
   const requests = await PurchaseRequest.find(filter)
     .sort({ createdAt: -1 })
     .populate('user', 'name email subscription')
-    .populate('reviewedBy', 'name email');
+    .populate('reviewedBy', 'name email')
+    .populate('revokedBy', 'name email');
 
   res.json({ requests });
 }));
@@ -81,6 +82,44 @@ router.post('/purchase-requests/:id/reject', asyncHandler(async (req, res) => {
   await request.save();
 
   res.json({ message: 'Request rejected', request });
+}));
+
+// Stops a plan a super admin previously approved here. Only downgrades the
+// user to Free if that request's plan is still their active one — if
+// they've since been approved for something else through a newer request,
+// this only records the revocation and leaves their current (different)
+// plan alone, so an old revoke can't undo a later, unrelated approval.
+router.post('/purchase-requests/:id/revoke', asyncHandler(async (req, res) => {
+  const request = await PurchaseRequest.findById(req.params.id);
+  if (!request) return res.status(404).json({ message: 'Request not found' });
+  if (request.status !== 'approved') {
+    return res.status(400).json({ message: 'Only an approved request can be revoked' });
+  }
+  if (request.revokedAt) {
+    return res.status(400).json({ message: 'Request already revoked' });
+  }
+
+  const user = await User.findById(request.user);
+  if (!user) return res.status(404).json({ message: 'Requesting user not found' });
+
+  let downgraded = false;
+  if (user.subscription?.plan === request.plan) {
+    user.subscription = { plan: 'free', purchasedAt: null, expiresAt: null };
+    await user.save();
+    downgraded = true;
+  }
+
+  request.revokedBy = req.user._id;
+  request.revokedAt = new Date();
+  await request.save();
+
+  res.json({
+    message: downgraded
+      ? `Revoked — ${user.email} is back on the Free plan`
+      : `Revoked — ${user.email} is already on a different plan, so nothing changed for them`,
+    request,
+    subscription: user.subscription,
+  });
 }));
 
 // ─── Payment methods shown to users in the "Request a plan" dialog ───
