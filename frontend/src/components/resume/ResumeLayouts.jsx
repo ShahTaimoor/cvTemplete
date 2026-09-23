@@ -86,21 +86,9 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
           ))}
           {resume.skills?.filter((s) => s.name)?.length > 0 && (
             <div className="mt-6">
-              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Expertise</p>
+              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Skills</p>
               {resume.skills.filter((s) => s.name).map((s, i) => (
                 <div key={i} className="text-[10px] py-1 border-b border-white/15">{skillLabel(s)}</div>
-              ))}
-            </div>
-          )}
-          {resume.education?.length > 0 && (
-            <div className="mt-6">
-              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Education</p>
-              {resume.education.map((e, i) => (
-                <div key={i} className="text-[10px] mb-2 opacity-95">
-                  <div className="font-semibold">{e.degree}</div>
-                  <div className="opacity-80">{e.institution}</div>
-                  {educationDates(e) && <div className="opacity-70">{educationDates(e)}</div>}
-                </div>
               ))}
             </div>
           )}
