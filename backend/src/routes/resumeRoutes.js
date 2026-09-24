@@ -6,8 +6,8 @@ import Template from '../models/Template.js';
 import AnalyticsEvent from '../models/AnalyticsEvent.js';
 import { protect } from '../middleware/auth.js';
 import { userCanUseTemplate, userCanCustomizeColors } from '../utils/templateAccess.js';
+import { stripPaidResumeFields } from '../utils/planLimits.js';
 import { analyzeResume } from '../services/atsService.js';
-import { buildResumeDocx } from '../services/docxService.js';
 import { generateResumePdf } from '../services/pdfService.js';
 import { generateResumeThumbnail, generateAndSaveThumbnail, fulfillIfDue, shouldRegenerateThumbnail } from '../services/thumbnailService.js';
 import { getSampleResumePayload } from '../utils/sampleResumeData.js';
@@ -196,7 +196,7 @@ router.post('/', asyncHandler(async (req, res) => {
 
   const count = await Resume.countDocuments({ user: req.user._id });
   const useSample = req.body.withSampleData !== false && (count === 0 || req.body.withSampleData === true);
-  const sample = useSample ? getSampleResumePayload() : {};
+  const sample = useSample ? stripPaidResumeFields(plan, getSampleResumePayload()) : {};
 
   const resume = await Resume.create({
     user: req.user._id,
@@ -268,12 +268,13 @@ router.put('/:id', asyncHandler(async (req, res) => {
     resume.theme = { ...(resume.theme?.toObject?.() || resume.theme), ...req.body.theme };
   }
 
+  const body = stripPaidResumeFields(plan, req.body);
   const allowed = [
     'title', 'personal', 'summary', 'education', 'experience',
     'skills', 'projects', 'certifications', 'sectionOrder', 'isPublic',
   ];
   allowed.forEach((key) => {
-    if (req.body[key] !== undefined) resume[key] = req.body[key];
+    if (body[key] !== undefined) resume[key] = body[key];
   });
 
   resume.lastAutoSavedAt = new Date();
@@ -368,25 +369,8 @@ router.post('/:id/share', asyncHandler(async (req, res) => {
   res.json({ shareUrl: `${base}/share/${resume.shareToken}` });
 }));
 
-router.post('/:id/docx', exportLimiter, asyncHandler(async (req, res) => {
-  const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id });
-  if (!resume) return res.status(404).json({ message: 'Resume not found' });
-  const buffer = await buildResumeDocx(resume);
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${(resume.title || 'resume').replace(/\s+/g, '-')}.docx"`
-  );
-  res.send(buffer);
-
-  // Fire-and-forget: never let analytics logging affect the export response.
-  AnalyticsEvent.create({ resume: resume._id, type: 'download', format: 'docx' }).catch((err) =>
-    console.error('Analytics download tracking failed:', err)
-  );
-}));
-
 // Real, native-text PDF via a headless-browser render of the print-CSS
-// route (see pdfService.js) — not a screenshot. Rate-limited like docx:
+// route (see pdfService.js) — not a screenshot. Rate-limited because
 // launching a browser per request is the most expensive export we offer.
 router.post('/:id/pdf', exportLimiter, asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({ _id: req.params.id, user: req.user._id }).select('_id title');

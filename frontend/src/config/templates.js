@@ -54,6 +54,22 @@ export const LAYOUT_FILTER_GROUPS = {
   ],
 };
 
+// Layouts whose renderer actually draws personal.photo (see ResumeLayouts.jsx /
+// RegionalResumeLayouts.jsx). Layouts not listed here have no photo slot, so
+// the editor hides the upload for them. Regional layouts that delegate to
+// another (ng→pk, my→in, eg→sa, tr→eu) follow the layout they delegate to;
+// us/uk/ca/au/za CVs are photo-free by convention.
+const PHOTO_LAYOUTS = new Set([
+  'classic', 'sidebar', 'sidebar-wide', 'sidebar-right', 'sidebar-accent', 'timeline', 'metro',
+  'banner-photo', 'header-photo-split', 'magazine', 'narrow-right', 'infographic', 'centered-hero',
+  'sidebar-footer', 'split-half', 'executive-dark', 'horizontal-sidebar', 'polaroid',
+  'sidebar-bottom', 'circular-header', 'hex-photo', 'sidebar-duo',
+  'eu-cv', 'de-cv', 'fr-cv', 'pk-cv', 'sa-cv', 'ae-cv', 'in-cv', 'jp-cv', 'br-cv', 'sg-cv',
+  'ng-cv', 'my-cv', 'eg-cv', 'tr-cv',
+]);
+
+export const templateSupportsPhoto = (slug) => PHOTO_LAYOUTS.has(getTemplatePreset(slug).layout);
+
 export const getLayoutGroup = (slug, layoutFromTemplate) => {
   const layout = layoutFromTemplate || getTemplatePreset(slug).layout;
   for (const [group, layouts] of Object.entries(LAYOUT_FILTER_GROUPS)) {

@@ -1,14 +1,36 @@
 import { useForm } from 'react-hook-form';
-import { useEffect, useRef } from 'react';
-import { Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Upload, Lock } from 'lucide-react';
 import DynamicListField from './DynamicListField';
+import UpgradePrompt from './UpgradePrompt';
+import { canUsePaidFields } from '../../utils/plans';
 import ThemeCustomizer from './ThemeCustomizer';
 import SectionOrder from './SectionOrder';
 import { uploadAPI } from '../../services/api';
+import { templateSupportsPhoto } from '../../config/templates';
 import { useToast } from '../../hooks/useToast';
+
+// The only personal.* fields actually bound to the form via register() below.
+// react-hook-form's watch() snapshot only ever reflects these — `photo` is
+// set directly via onUpdate in handlePhoto, so it's never part of that
+// snapshot. Merging the whole data.personal object into personal (rather
+// than picking just these keys) would carry photo's stale, empty value from
+// that snapshot and overwrite the real uploaded one the instant any other
+// field changed.
+const PERSONAL_TEXT_FIELDS = ['fullName', 'jobTitle', 'email', 'phone', 'location', 'website', 'linkedin'];
+
+// Personal fields that need a paid plan, with the name shown in the upgrade prompt.
+const PAID_PERSONAL_FIELDS = {
+  email: 'Email',
+  phone: 'Phone number',
+  website: 'Website link',
+  linkedin: 'LinkedIn link',
+};
 
 export default function ResumeForm({ resume, onUpdate, userPlan }) {
   const toast = useToast();
+  const paid = canUsePaidFields(userPlan);
+  const [lockedFeature, setLockedFeature] = useState(null);
   const { register, watch, reset } = useForm({ defaultValues: resume });
   const resumeRef = useRef(resume);
   resumeRef.current = resume;
@@ -22,11 +44,15 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
     const sub = watch((data) => {
       const r = resumeRef.current;
       if (!r) return;
+      const personalUpdates = {};
+      PERSONAL_TEXT_FIELDS.forEach((field) => {
+        if (data.personal?.[field] !== undefined) personalUpdates[field] = data.personal[field];
+      });
       onUpdate({
         ...r,
         title: data.title ?? r.title,
         summary: data.summary ?? r.summary,
-        personal: { ...r.personal, ...(data.personal || {}) },
+        personal: { ...r.personal, ...personalUpdates },
       });
     });
     return () => sub.unsubscribe();
@@ -59,26 +85,51 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
       <section className="space-y-3">
         <h3 className="font-semibold text-slate-900">Personal Information</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          {['fullName', 'jobTitle', 'email', 'phone', 'location', 'website', 'linkedin'].map(
-            (field) => (
-              <div key={field}>
-                <label className="app-label capitalize">{field}</label>
-                <input
-                  {...register(`personal.${field}`)}
-                  className="app-input text-sm"
-                />
-              </div>
-            )
+          {PERSONAL_TEXT_FIELDS.map(
+            (field) => {
+              const lockLabel = PAID_PERSONAL_FIELDS[field];
+              const locked = !!lockLabel && !paid;
+              return (
+                <div key={field}>
+                  <label className="app-label capitalize flex items-center gap-1">
+                    {field}
+                    {locked && <Lock size={12} className="text-amber-500" aria-label="Paid feature" />}
+                  </label>
+                  <input
+                    {...register(`personal.${field}`)}
+                    readOnly={locked}
+                    onClick={locked ? () => setLockedFeature(lockLabel) : undefined}
+                    className={`app-input text-sm ${locked ? 'cursor-not-allowed bg-slate-100 text-slate-400' : ''}`}
+                  />
+                </div>
+              );
+            }
           )}
         </div>
-        <div>
-          <label className="app-label">Profile Photo</label>
-          <label className="app-btn-secondary cursor-pointer inline-flex w-fit gap-2">
-            <Upload size={16} />
-            Choose Photo
-            <input type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />
-          </label>
-        </div>
+        {templateSupportsPhoto(resume.templateSlug) && (
+          <div>
+            <label className="app-label flex items-center gap-1">
+              Profile Photo
+              {!paid && <Lock size={12} className="text-amber-500" aria-label="Paid feature" />}
+            </label>
+            {paid ? (
+              <label className="app-btn-secondary cursor-pointer inline-flex w-fit gap-2">
+                <Upload size={16} />
+                Choose Photo
+                <input type="file" accept="image/*" onChange={handlePhoto} className="sr-only" />
+              </label>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLockedFeature('Profile photo')}
+                className="app-btn-secondary inline-flex w-fit gap-2"
+              >
+                <Upload size={16} />
+                Choose Photo
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       <section>
@@ -98,11 +149,12 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
           { key: 'position', label: 'Position' },
           { key: 'company', label: 'Company' },
           { key: 'location', label: 'Location' },
-          { key: 'startDate', label: 'Start Date' },
-          { key: 'endDate', label: 'End Date' },
-          { key: 'current', label: 'Currently working', type: 'checkbox' },
+          { key: 'startDate', label: 'Start Date', locked: !paid, lockLabel: 'Job start date' },
+          { key: 'endDate', label: 'End Date', locked: !paid, lockLabel: 'Job end date' },
+          { key: 'current', label: 'Currently working', type: 'checkbox', locked: !paid, lockLabel: 'Job dates' },
           { key: 'description', label: 'Description', type: 'textarea', full: true },
         ]}
+        onLockedClick={setLockedFeature}
       />
 
       <DynamicListField
@@ -116,10 +168,11 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
           { key: 'institution', label: 'Institution' },
           { key: 'degree', label: 'Degree' },
           { key: 'field', label: 'Field of Study' },
-          { key: 'startDate', label: 'Start' },
-          { key: 'endDate', label: 'End' },
+          { key: 'startDate', label: 'Start', locked: !paid, lockLabel: 'Education start date' },
+          { key: 'endDate', label: 'End', locked: !paid, lockLabel: 'Education end date' },
           { key: 'description', label: 'Notes', type: 'textarea', full: true },
         ]}
+        onLockedClick={setLockedFeature}
       />
 
       <DynamicListField
@@ -140,10 +193,11 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
         emptyItem={{ name: '', url: '', technologies: '', description: '' }}
         fields={[
           { key: 'name', label: 'Project Name' },
-          { key: 'url', label: 'URL' },
+          { key: 'url', label: 'URL', locked: !paid, lockLabel: 'Project URL' },
           { key: 'technologies', label: 'Technologies' },
           { key: 'description', label: 'Description', type: 'textarea', full: true },
         ]}
+        onLockedClick={setLockedFeature}
       />
 
       <DynamicListField
@@ -155,8 +209,9 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
           { key: 'name', label: 'Name' },
           { key: 'issuer', label: 'Issuer' },
           { key: 'date', label: 'Date' },
-          { key: 'url', label: 'URL' },
+          { key: 'url', label: 'URL', locked: !paid, lockLabel: 'Certification URL' },
         ]}
+        onLockedClick={setLockedFeature}
       />
 
       <ThemeCustomizer theme={resume.theme} onChange={updateTheme} userPlan={userPlan} />
@@ -164,6 +219,8 @@ export default function ResumeForm({ resume, onUpdate, userPlan }) {
       {['pro', 'premium'].includes(userPlan) && (
         <SectionOrder order={resume.sectionOrder || []} onChange={updateOrder} />
       )}
+
+      {lockedFeature && <UpgradePrompt feature={lockedFeature} onClose={() => setLockedFeature(null)} />}
     </div>
   );
 }

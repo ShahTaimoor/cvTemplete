@@ -1,5 +1,42 @@
+import fs from 'fs';
 import puppeteer from 'puppeteer';
 import { createPrintToken, createCoverLetterPrintToken } from '../utils/printToken.js';
+
+const SYSTEM_BROWSER_PATHS = {
+  win32: [
+    'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    'C:/Program Files/Microsoft/Edge/Application/msedge.exe',
+  ],
+  darwin: [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+  ],
+  linux: [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/microsoft-edge',
+  ],
+};
+
+/**
+ * Picks a browser without requiring any setup: an explicit
+ * PUPPETEER_EXECUTABLE_PATH wins, then Puppeteer's own downloaded Chrome,
+ * then a Chrome/Edge already installed on the machine. Returns undefined
+ * only if none exist, letting Puppeteer raise its usual "could not find
+ * Chrome" error.
+ */
+function resolveBrowserPath() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    puppeteer.executablePath(),
+    ...(SYSTEM_BROWSER_PATHS[process.platform] || []),
+  ];
+  return candidates.find((p) => p && fs.existsSync(p));
+}
 
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
@@ -38,6 +75,7 @@ export async function launchPrintPage(resourceId, userId, viewport, kind = 'resu
 
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath: resolveBrowserPath(),
     // --disable-dev-shm-usage: most containerized hosts (Render, Railway,
     // Docker generally) cap /dev/shm at 64MB. A screenshot only rasterizes
     // one viewport and stays under that, but the PDF print pipeline lays

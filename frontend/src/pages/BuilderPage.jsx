@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence } from 'framer-motion';
-import { Download, LayoutTemplate, CheckCircle, AlertCircle, Share2, BarChart3, LineChart, FileImage, FileType, History, Mail, X } from 'lucide-react';
+import { Download, LayoutTemplate, CheckCircle, AlertCircle, Share2, BarChart3, LineChart, FileImage, History, Mail, X } from 'lucide-react';
 import { fetchResume, setCurrentResume } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI, coverLetterAPI, downloadBlob } from '../services/api';
@@ -181,18 +181,17 @@ export default function BuilderPage() {
       const { data } = await resumeAPI.pdf(id);
       downloadBlob(data, safeFilename('pdf'), 'application/pdf');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'PDF export failed');
+      // responseType is 'blob', so an error body arrives as a Blob, not JSON.
+      let message;
+      try {
+        const body = err.response?.data;
+        message = (body instanceof Blob ? JSON.parse(await body.text()) : body)?.message;
+      } catch {
+        message = undefined;
+      }
+      toast.error(message || 'PDF export failed');
     } finally {
       setExporting(false);
-    }
-  };
-
-  const downloadDocx = async () => {
-    try {
-      const { data } = await resumeAPI.docx(id);
-      downloadBlob(data, `${localResume?.title || 'resume'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    } catch {
-      toast.error('DOCX export failed');
     }
   };
 
@@ -356,9 +355,6 @@ export default function BuilderPage() {
           >
             <MotionIcon><Download size={14} /></MotionIcon> {exporting ? '...' : 'PDF'}
           </button>
-          <button type="button" onClick={downloadDocx} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
-            <MotionIcon><FileType size={14} /></MotionIcon> DOCX
-          </button>
           <button type="button" onClick={downloadPng} className="hidden sm:flex app-btn-secondary !py-1.5 gap-1 text-sm">
             <MotionIcon><FileImage size={14} /></MotionIcon> PNG
           </button>
@@ -457,7 +453,6 @@ export default function BuilderPage() {
       </div>
 
       <div className="lg:hidden flex gap-2 p-2 border-t border-slate-200 bg-white shrink-0">
-        <button type="button" onClick={downloadDocx} className="flex-1 app-btn-secondary !py-2 text-xs">DOCX</button>
         <button type="button" onClick={downloadPng} className="flex-1 app-btn-secondary !py-2 text-xs">PNG</button>
       </div>
 

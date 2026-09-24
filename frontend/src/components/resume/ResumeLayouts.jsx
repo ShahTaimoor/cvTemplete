@@ -1,4 +1,4 @@
-import { Sections, TimelineExperience, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, SectionTitle } from './resumeSections';
+import { Sections, TimelineExperience, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, SectionTitle, skillLabel, educationDates, UrlLink } from './resumeSections';
 import { getThemedFrameBg, getThemedMutedBandStyle, getThemedCardStyles } from '../../utils/resumeThemeUtils';
 
 /* ─── Sidebar (left) — contact + skills in colored panel ─── */
@@ -86,20 +86,9 @@ export const SidebarRightLayout = ({ resume, style, variant }) => {
           ))}
           {resume.skills?.filter((s) => s.name)?.length > 0 && (
             <div className="mt-6">
-              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Expertise</p>
+              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Skills</p>
               {resume.skills.filter((s) => s.name).map((s, i) => (
-                <div key={i} className="text-[10px] py-1 border-b border-white/15">{s.name}</div>
-              ))}
-            </div>
-          )}
-          {resume.education?.length > 0 && (
-            <div className="mt-6">
-              <p className="text-[10px] uppercase tracking-widest opacity-70 mb-2">Education</p>
-              {resume.education.map((e, i) => (
-                <div key={i} className="text-[10px] mb-2 opacity-95">
-                  <div className="font-semibold">{e.degree}</div>
-                  <div className="opacity-80">{e.institution}</div>
-                </div>
+                <div key={i} className="text-[10px] py-1 border-b border-white/15">{skillLabel(s)}</div>
               ))}
             </div>
           )}
@@ -399,6 +388,7 @@ export const StripeLayout = ({ resume, style }) => {
       <div className="p-8 text-white" style={{ background: style.primary }}>
         <h1 className="text-3xl font-bold">{p.fullName || 'Your Name'}</h1>
         <p className="opacity-90">{p.jobTitle}</p>
+        <p className="opacity-75 text-[10px] mt-2">{getContacts(p).join(' · ')}</p>
       </div>
       {blocks.map((b, i) => (
         <div
@@ -496,7 +486,10 @@ export const NarrowRightLayout = ({ resume, style }) => {
           <div className="mt-5">
             <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Certs</p>
             {resume.certifications.map((c, i) => (
-              <div key={i} className="text-[10px] text-gray-600 mb-1">{c.name}</div>
+              <div key={i} className="text-[10px] text-gray-600 mb-1">
+                {c.name}
+                {c.url && <div><UrlLink url={c.url} className="underline" style={{ color: style.primary }} /></div>}
+              </div>
             ))}
           </div>
         )}
@@ -514,6 +507,7 @@ export const InfographicLayout = ({ resume, style }) => {
         <div className="flex-1 p-6" style={{ background: style.primary, color: '#fff' }}>
           <h1 className="text-2xl font-bold">{p.fullName || 'Your Name'}</h1>
           <p className="opacity-90">{p.jobTitle}</p>
+          <p className="opacity-75 text-[10px] mt-2">{getContacts(p).join(' · ')}</p>
         </div>
         {p.photo && (
           <img src={p.photo} alt="" className="w-28 h-full object-cover" />
@@ -540,6 +534,7 @@ export const InfographicLayout = ({ resume, style }) => {
                 <div key={i} className="text-[10px] mb-2">
                   <div className="font-semibold">{e.degree}</div>
                   <div className="text-gray-500">{e.institution}</div>
+                  {educationDates(e) && <div className="text-gray-400">{educationDates(e)}</div>}
                 </div>
               ))}
             </div>
@@ -687,7 +682,8 @@ export const FrameBorderLayout = ({ resume, style, variant }) => {
     <div className="p-6 min-h-[297mm]" style={{ background: style.bg, fontSize: '11px', fontFamily: style.font }}>
       <div className="p-6 h-full border-2" style={{ borderColor: style.primary }}>
         <h1 className="text-xl font-bold text-center mb-1" style={{ color: style.primary }}>{p.fullName}</h1>
-        <p className="text-center text-xs text-gray-600 mb-4">{p.jobTitle}</p>
+        <p className="text-center text-xs text-gray-600 mb-1">{p.jobTitle}</p>
+        <p className="text-center text-gray-400 text-[10px] mb-4">{getContacts(p).join(' · ')}</p>
         <Sections resume={resume} style={style} variant={variant} />
       </div>
     </div>
@@ -703,7 +699,8 @@ export const RibbonLeftLayout = ({ resume, style, variant }) => {
       <div className="w-2 shrink-0" style={{ background: style.secondary }} />
       <div className="flex-1 p-7">
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName}</h1>
-        <p className="text-sm text-gray-600 mb-4">{p.jobTitle}</p>
+        <p className="text-sm text-gray-600 mb-1">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mb-4">{getContacts(p).join(' · ')}</p>
         <Sections resume={resume} style={style} variant={variant} />
       </div>
     </div>
@@ -787,6 +784,7 @@ export const AsymmetricLayout = ({ resume, style }) => {
       <div className="px-6 py-5 border-b" style={{ borderColor: style.primary }}>
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName}</h1>
         <p className="text-gray-600">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mt-1">{getContacts(p).join(' · ')}</p>
       </div>
       <div className="flex">
         <div className="w-[68%] p-5 border-r border-gray-100">
@@ -888,7 +886,7 @@ export const NewspaperLayout = ({ resume, style }) => {
       <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t-2" style={{ borderColor: style.primary }}>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Skills</p>
-          {skills.map((s, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{s.name}</div>)}
+          {skills.map((s, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{skillLabel(s)}</div>)}
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Education</p>
@@ -896,12 +894,18 @@ export const NewspaperLayout = ({ resume, style }) => {
             <div key={i} className="text-[10px] mb-1">
               <div className="font-semibold">{e.degree}</div>
               <div className="text-gray-500">{e.institution}</div>
+              {educationDates(e) && <div className="text-gray-400">{educationDates(e)}</div>}
             </div>
           ))}
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>Certifications</p>
-          {certs.map((c, i) => <div key={i} className="text-[10px] text-gray-600 mb-0.5">{c.name}</div>)}
+          {certs.map((c, i) => (
+            <div key={i} className="text-[10px] text-gray-600 mb-0.5">
+              {c.name}
+              {c.url && <div><UrlLink url={c.url} className="underline" style={{ color: style.primary }} /></div>}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -930,7 +934,7 @@ export const SwissLayout = ({ resume, style }) => {
             <>
               <p className="text-[9px] font-bold uppercase tracking-widest mb-3" style={{ color: style.primary }}>Skills</p>
               {resume.skills.filter((s) => s.name).map((s, i) => (
-                <div key={i} className="text-[10px] mb-2 pb-2 border-b border-gray-200">{s.name}</div>
+                <div key={i} className="text-[10px] mb-2 pb-2 border-b border-gray-200">{skillLabel(s)}</div>
               ))}
             </>
           )}
@@ -1196,6 +1200,7 @@ export const ZigzagLayout = ({ resume, style }) => {
       <div className="px-8 py-6 text-center border-b-2" style={{ borderColor: style.primary, background: style.bg }}>
         <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{p.fullName || 'Your Name'}</h1>
         <p className="text-gray-600">{p.jobTitle}</p>
+        <p className="text-gray-400 text-[10px] mt-1">{getContacts(p).join(' · ')}</p>
       </div>
       {order.map((key, i) => (
         <div
@@ -1253,7 +1258,7 @@ export const SidebarBottomLayout = ({ resume, style, variant }) => {
           <div className="p-4 border-l border-white/20 min-w-[28%]">
             <p className="text-[9px] uppercase opacity-70 mb-1">Skills</p>
             {resume.skills.filter((s) => s.name).slice(0, 6).map((s, i) => (
-              <span key={i} className="inline-block text-[9px] mr-2 opacity-95">{s.name}</span>
+              <span key={i} className="inline-block text-[9px] mr-2 opacity-95">{skillLabel(s)}</span>
             ))}
           </div>
         )}
@@ -1326,6 +1331,7 @@ export const PortfolioGridLayout = ({ resume, style }) => {
             {projects.map((proj, i) => (
               <div key={i} className="p-3 rounded-lg border" style={getThemedCardStyles(style, true)}>
                 <div className="font-bold text-xs">{proj.name}</div>
+                {proj.url && <div><UrlLink url={proj.url} className="text-[9px] underline" style={{ color: style.primary }} /></div>}
                 <p className="text-[9px] mt-1" style={{ color: style.secondary }}>{proj.technologies}</p>
                 <p className="text-[9px] text-gray-600 mt-1">{proj.description}</p>
               </div>
@@ -1587,6 +1593,7 @@ export const renderLayout = (layout, props) => {
         <div className="p-8 text-center" style={{ background: style.bg, fontSize: '11px' }}>
           <h1 className="text-3xl font-light text-gray-900">{resume.personal?.fullName || 'Your Name'}</h1>
           <p className="text-gray-500 mt-1">{resume.personal?.jobTitle}</p>
+          <p className="text-gray-400 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           <div className="mt-8 text-left">
             <Sections resume={resume} style={style} variant="minimal" />
           </div>
@@ -1598,6 +1605,7 @@ export const renderLayout = (layout, props) => {
           <div className="p-8 text-white" style={{ background: style.primary }}>
             <h1 className="text-2xl font-bold">{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="opacity-90">{resume.personal?.jobTitle}</p>
+            <p className="opacity-75 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <div className="p-8"><Sections resume={resume} style={style} variant={variant} /></div>
         </div>
@@ -1608,6 +1616,7 @@ export const renderLayout = (layout, props) => {
           <div className="p-8 text-white" style={{ background: style.primary }}>
             <h1 className="text-3xl font-black">{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="text-lg opacity-90">{resume.personal?.jobTitle}</p>
+            <p className="opacity-75 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <div className="p-8"><Sections resume={resume} style={style} variant={variant} /></div>
         </div>
@@ -1618,6 +1627,7 @@ export const renderLayout = (layout, props) => {
           <div className="text-center border-b border-gray-200 pb-4 mb-6">
             <h1 className="text-3xl" style={{ color: style.primary }}>{resume.personal?.fullName || 'Your Name'}</h1>
             <p className="italic text-gray-600 mt-1">{resume.personal?.jobTitle}</p>
+            <p className="text-gray-400 text-[10px] mt-2">{getContacts(resume.personal).join(' · ')}</p>
           </div>
           <Sections resume={resume} style={style} variant="elegant" />
         </div>
@@ -1641,7 +1651,8 @@ export const renderLayout = (layout, props) => {
       return (
         <div className="p-8 font-mono" style={{ background: style.bg, fontSize: '11px' }}>
           <h1 className="text-xl font-bold mb-1" style={{ color: style.primary }}>{'>'} {resume.personal?.fullName || 'Your Name'}</h1>
-          <p className="text-gray-500 text-xs mb-4">// {resume.personal?.jobTitle}</p>
+          <p className="text-gray-500 text-xs mb-1">// {resume.personal?.jobTitle}</p>
+          <p className="text-gray-400 text-[10px] mb-4">// {getContacts(resume.personal).join(' · ')}</p>
           <Sections resume={resume} style={style} variant="minimal" />
         </div>
       );
@@ -1650,6 +1661,9 @@ export const renderLayout = (layout, props) => {
         <div className="p-8 flex gap-4" style={{ background: style.bg, fontSize: '11px' }}>
           <div className="w-1.5 rounded-full shrink-0" style={{ background: style.primary }} />
           <div className="flex-1">
+            <h1 className="text-2xl font-bold" style={{ color: style.primary }}>{resume.personal?.fullName || 'Your Name'}</h1>
+            <p className="text-gray-600">{resume.personal?.jobTitle}</p>
+            <p className="text-gray-400 text-[10px] mt-1 mb-4">{getContacts(resume.personal).join(' · ')}</p>
             <Sections resume={resume} style={style} variant="default" />
           </div>
         </div>

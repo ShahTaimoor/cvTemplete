@@ -23,6 +23,7 @@ import PrintPage from './pages/PrintPage';
 import CoverLetterPrintPage from './pages/CoverLetterPrintPage';
 import CoverLetterPage from './pages/CoverLetterPage';
 import AdminPurchaseRequestsPage from './pages/AdminPurchaseRequestsPage';
+import AdminPaymentSettingsPage from './pages/AdminPaymentSettingsPage';
 
 function PageTransition({ children }) {
   return (
@@ -124,6 +125,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute requireSuperAdmin>
                 <PageTransition><AdminPurchaseRequestsPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payment-settings"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <PageTransition><AdminPaymentSettingsPage /></PageTransition>
               </ProtectedRoute>
             }
           />

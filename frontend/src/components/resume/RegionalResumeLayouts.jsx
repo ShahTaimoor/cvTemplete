@@ -1,4 +1,4 @@
-import { Sections, SkillBars, getContacts, getContactEntries, resumeWithoutSkills } from './resumeSections';
+import { Sections, SkillBars, getContacts, getContactEntries, resumeWithoutSkills, skillLabel } from './resumeSections';
 
 const RegionalHeader = ({ style, p, showPhoto, docTitle, centered }) => (
   <div className={`mb-5 pb-3 border-b-2 ${centered ? 'text-center' : ''}`} style={{ borderColor: style.primary }}>
@@ -198,7 +198,7 @@ export const AUCVLayout = ({ resume, style }) => {
           <p className="text-[10px] font-bold uppercase mb-2" style={{ color: style.primary }}>{style.sectionLabels?.skills || 'Skills'}</p>
           <div className="flex flex-wrap gap-1.5">
             {skills.map((s, i) => (
-              <span key={i} className="px-2 py-0.5 rounded text-[10px] text-white" style={{ background: style.primary }}>{s.name}</span>
+              <span key={i} className="px-2 py-0.5 rounded text-[10px] text-white" style={{ background: style.primary }}>{skillLabel(s)}</span>
             ))}
           </div>
         </div>

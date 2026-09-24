@@ -43,6 +43,16 @@ const purchaseRequestSchema = new mongoose.Schema(
     },
     reviewedAt: { type: Date, default: null },
     reviewNote: { type: String, default: '', trim: true, maxlength: 500 },
+    // Set when a super admin later stops a plan they'd previously approved
+    // here (see routes/adminRoutes.js's /revoke). status stays 'approved' —
+    // this is a separate record of the plan having been switched off, not a
+    // different review outcome.
+    revokedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    revokedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

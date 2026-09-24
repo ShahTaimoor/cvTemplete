@@ -108,7 +108,7 @@ export default function MediaCard({ thumbnail, title, meta = [], actions = [] })
         never keyboard reachability.
       */}
       <motion.div
-        className={`absolute inset-0 bg-slate-900/65 ${revealed ? '' : 'pointer-events-none'}`}
+        className={`absolute inset-0 bg-slate-900/45 backdrop-blur-sm ${revealed ? '' : 'pointer-events-none'}`}
         initial="hidden"
         animate={revealed ? 'visible' : 'hidden'}
         variants={scrimVariants}

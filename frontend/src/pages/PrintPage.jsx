@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { getResumeStyle, getPreviewVariant } from '../config/templates';
 import { renderLayout } from '../components/resume/ResumeLayouts';
+import { applyKeepTogether } from '../utils/keepTogether';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -44,6 +45,20 @@ export default function PrintPage() {
       .catch(() => setReady(true));
   }, [id, token]);
 
+  // Keep blocks whole across the PDF's page breaks. Re-run once `ready` flips
+  // (web fonts applied) since font metrics change the layout being measured.
+  const contentRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:297mm;width:0;';
+    document.body.appendChild(probe);
+    const pageHeightPx = probe.getBoundingClientRect().height;
+    document.body.removeChild(probe);
+    applyKeepTogether(el, [], pageHeightPx);
+  }, [resume, ready]);
+
   if (!resume) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center text-gray-400 text-sm">
@@ -70,6 +85,7 @@ export default function PrintPage() {
       `}</style>
       <div id="print-page-root" style={{ width: '210mm' }} data-print-ready={ready ? 'true' : 'false'}>
         <div
+          ref={contentRef}
           className="resume-preview-root"
           style={{
             width: 'calc(210mm / var(--print-scale, 1))',
