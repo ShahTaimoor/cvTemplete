@@ -2,7 +2,9 @@ import express from 'express';
 import User from '../models/User.js';
 import PurchaseRequest from '../models/PurchaseRequest.js';
 import PaymentMethod from '../models/PaymentMethod.js';
+import FreePeriod from '../models/FreePeriod.js';
 import { PLANS } from '../config/plans.js';
+import { clearFreePeriodCache, publicFreePeriod } from '../utils/freePeriod.js';
 import { protect, requireSuperAdmin } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -124,6 +126,42 @@ router.post('/purchase-requests/:id/revoke', asyncHandler(async (req, res) => {
 
 // ─── Payment methods shown to users in the "Request a plan" dialog ───
 const METHOD_TYPES = ['easypaisa', 'jazzcash', 'bank', 'other'];
+
+// Free period: while enabled and between the two dates, every plan is free.
+router.get('/free-period', asyncHandler(async (_req, res) => {
+  const fp = await FreePeriod.findOne({ key: 'default' }).lean();
+  res.json(publicFreePeriod(fp));
+}));
+
+router.put('/free-period', asyncHandler(async (req, res) => {
+  const enabled = req.body.enabled === true;
+  const startsAt = new Date(req.body.startsAt);
+  const endsAt = new Date(req.body.endsAt);
+  const validStart = !Number.isNaN(startsAt.getTime());
+  const validEnd = !Number.isNaN(endsAt.getTime());
+
+  if (enabled) {
+    if (!validStart || !validEnd) {
+      return res.status(400).json({ message: 'Choose both a start and an end date' });
+    }
+    if (endsAt <= startsAt) {
+      return res.status(400).json({ message: 'End date must be after the start date' });
+    }
+  }
+
+  const fp = await FreePeriod.findOneAndUpdate(
+    { key: 'default' },
+    {
+      enabled,
+      startsAt: validStart ? startsAt : null,
+      endsAt: validEnd ? endsAt : null,
+      updatedBy: req.user._id,
+    },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  ).lean();
+  clearFreePeriodCache();
+  res.json(publicFreePeriod(fp));
+}));
 
 const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 

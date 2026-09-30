@@ -5,12 +5,18 @@ import PurchaseRequest from '../models/PurchaseRequest.js';
 import PaymentMethod from '../models/PaymentMethod.js';
 import { protect } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { getFreePeriod, publicFreePeriod } from '../utils/freePeriod.js';
 
 const router = express.Router();
 
 router.get('/plans', (_req, res) => {
   res.json(Object.values(PLANS));
 });
+
+// Public: lets the pricing page announce a running (or upcoming) free period.
+router.get('/free-period', asyncHandler(async (_req, res) => {
+  res.json(publicFreePeriod(await getFreePeriod()));
+}));
 
 router.get('/current', protect, asyncHandler(async (req, res) => {
   const plan = req.user.subscription?.plan || 'free';

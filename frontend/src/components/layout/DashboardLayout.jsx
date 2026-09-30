@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft, ShieldCheck, Landmark } from 'lucide-react';
+import { FileText, PenLine, Mail, PanelLeftClose, PanelLeft, ShieldCheck, Landmark, Gift } from 'lucide-react';
 import { logoutUser } from '../../store/authSlice';
 import { adminAPI } from '../../services/api';
 import { overlayFade, drawerPanel, DURATION, EASE } from '../../lib/motion';
@@ -34,6 +34,9 @@ function MailNavIcon({ size }) {
 function ShieldCheckNavIcon({ size }) {
   return <ShieldCheck size={size} />;
 }
+function GiftNavIcon({ size }) {
+  return <Gift size={size} />;
+}
 function LandmarkNavIcon({ size }) {
   return <Landmark size={size} />;
 }
@@ -49,6 +52,7 @@ const NAV = [
 const PURCHASE_REQUESTS_PATH = '/admin/purchase-requests';
 const ADMIN_NAV = [
   { to: PURCHASE_REQUESTS_PATH, label: 'Purchase Requests', icon: ShieldCheckNavIcon },
+  { to: '/admin/free-period', label: 'Free Period', icon: GiftNavIcon },
   { to: '/admin/payment-settings', label: 'Payment Settings', icon: LandmarkNavIcon },
 ];
 

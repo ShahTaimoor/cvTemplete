@@ -6,6 +6,7 @@ import { setTokenCookie, clearTokenCookie } from '../utils/tokenCookie.js';
 import { protect } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter } from '../middleware/security.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { withFreePeriodPlan } from '../utils/freePeriod.js';
 
 const router = express.Router();
 
@@ -29,12 +30,13 @@ router.post(
     }
     const user = await User.create({ name, email, password });
     setTokenCookie(res, generateToken(user._id));
+    const { subscription } = await withFreePeriodPlan(user);
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      subscription: user.subscription,
+      subscription,
     });
   })
 );
@@ -53,12 +55,13 @@ router.post(
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     setTokenCookie(res, generateToken(user._id));
+    const { subscription } = await withFreePeriodPlan(user);
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      subscription: user.subscription,
+      subscription,
     });
   })
 );

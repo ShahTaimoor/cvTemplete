@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Check, X, Sparkles, Loader2, Clock, AlertCircle } from 'lucide-react';
+import { Check, X, Sparkles, Loader2, Clock, AlertCircle, Gift } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { PLANS, formatPlanPrice, CURRENCY_LABEL, BILLING_PERIOD_LABEL } from '../utils/plans';
@@ -94,6 +94,18 @@ export default function PricingPage() {
       .then(({ data }) => setMyRequest(data?.request || null))
       .catch(() => setMyRequest(null));
   };
+
+  // Running or upcoming free period announced by the admin (else null).
+  const [freePeriod, setFreePeriod] = useState(null);
+  useEffect(() => {
+    subscriptionAPI
+      .freePeriod()
+      .then(({ data }) => {
+        const upcoming = data?.enabled && data.endsAt && new Date(data.endsAt) > new Date();
+        setFreePeriod(data?.active || upcoming ? data : null);
+      })
+      .catch(() => setFreePeriod(null));
+  }, []);
 
   useEffect(() => {
     refreshMyRequest();
@@ -214,6 +226,28 @@ export default function PricingPage() {
           Start free, then upgrade when you need more templates and tools. Paid plans are billed per month in PKR.
         </p>
       </div>
+
+      {freePeriod && (
+        <div className="max-w-3xl mx-auto mb-8 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <Gift size={18} className="mt-0.5 shrink-0" />
+          <p>
+            {freePeriod.active ? (
+              <>
+                <strong>All plans are free</strong> until{' '}
+                {new Date(freePeriod.endsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
+                Enjoy full Premium access.
+              </>
+            ) : (
+              <>
+                <strong>All plans will be free</strong> from{' '}
+                {new Date(freePeriod.startsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}{' '}
+                to{' '}
+                {new Date(freePeriod.endsAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Purchase-request status */}
       {pendingRequest && (
