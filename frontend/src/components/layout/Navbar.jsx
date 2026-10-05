@@ -33,12 +33,14 @@ export default function Navbar() {
       style={isLanding ? { backgroundColor, backdropFilter, borderColor, boxShadow } : undefined}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 font-bold text-slate-900">
+        <Link to="/" className="flex items-center gap-2 font-bold text-slate-900 shrink-0 text-[13px] leading-tight sm:text-base">
           <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-9 w-9 object-contain shrink-0" />
-          Tech Wiser Consulting
+          <span className="whitespace-nowrap">
+            Tech Wiser<br className="sm:hidden" /> Consulting
+          </span>
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-6 text-sm font-medium">
-          <Link to="/pricing" className="text-slate-600 hover:text-brand-600 px-2 py-1">
+        <nav className="flex items-center gap-0.5 sm:gap-6 text-[13px] sm:text-sm font-medium whitespace-nowrap">
+          <Link to="/pricing" className="hidden min-[420px]:inline text-slate-600 hover:text-brand-600 px-2 py-1">
             Pricing
           </Link>
           {user ? (
@@ -63,7 +65,7 @@ export default function Navbar() {
               <Link to="/login" className="text-slate-600 hover:text-brand-600 px-2 py-1">
                 Sign in
               </Link>
-              <Link to="/register" className="app-btn-primary !py-2 !px-4">
+              <Link to="/register" className="app-btn-primary !py-2 !px-3 sm:!px-4 !text-[13px] sm:!text-sm whitespace-nowrap">
                 Get started
               </Link>
             </>
