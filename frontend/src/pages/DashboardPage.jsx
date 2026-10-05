@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, FileText, Crown, LayoutTemplate, Eye, Clock, Download, TrendingUp, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, FileText, Crown, LayoutTemplate, Eye, Clock, Download, TrendingUp, Mail, ChevronLeft, ChevronRight, MessageSquareQuote } from 'lucide-react';
 import { fetchResumes } from '../store/resumeSlice';
 import { fetchTemplates } from '../store/templateSlice';
 import { resumeAPI } from '../services/api';
@@ -10,6 +10,7 @@ import TemplatePickerModal from '../components/dashboard/TemplatePickerModal';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import { useToast } from '../hooks/useToast';
 import { staggerContainer, staggerItem, pageFade, iconPopIn, DURATION, EASE } from '../lib/motion';
+import { WriteReviewModal } from '../components/reviews/ReviewsSection';
 import MotionIcon from '../components/common/MotionIcon';
 import Skeleton from '../components/common/Skeleton';
 
@@ -278,6 +279,7 @@ export default function DashboardPage() {
   const { user } = useSelector((s) => s.auth);
   const { items: templates } = useSelector((s) => s.templates);
   const [showNew, setShowNew] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [selectedSlug, setSelectedSlug] = useState('classic-blue');
   const [insight, setInsight] = useState(null);
   const plan = user?.subscription?.plan || 'free';
@@ -324,6 +326,7 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
+      {showReview && <WriteReviewModal user={user} onClose={() => setShowReview(false)} />}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <motion.div
           initial={pageFade.initial}
@@ -341,10 +344,16 @@ export default function DashboardPage() {
             </h1>
             <p className="text-slate-600 mt-1">Manage resumes and pick templates for your next application.</p>
           </div>
-          <button type="button" onClick={() => setShowNew(!showNew)} className="app-btn-primary shrink-0">
-            <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
-            New resume
-          </button>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button type="button" onClick={() => setShowReview(true)} className="app-btn-secondary">
+              <MessageSquareQuote size={18} className="mr-2" />
+              Write a review
+            </button>
+            <button type="button" onClick={() => setShowNew(!showNew)} className="app-btn-primary">
+              <MotionIcon><Plus size={18} className="mr-2" /></MotionIcon>
+              New resume
+            </button>
+          </div>
         </motion.div>
 
         {!resumesLoaded || !templatesLoaded ? (

@@ -7,7 +7,7 @@ import { useToast } from '../../hooks/useToast';
 import ReviewForm from './ReviewForm';
 import { Stars, Avatar } from './reviewUtils';
 
-function WriteReviewModal({ user, onClose }) {
+export function WriteReviewModal({ user, onClose }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
 
