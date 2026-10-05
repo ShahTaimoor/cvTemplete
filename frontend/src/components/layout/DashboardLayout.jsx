@@ -361,7 +361,9 @@ export default function DashboardLayout({ children, fullHeight = false }) {
         <div className={`flex h-16 items-center border-b border-slate-200 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2 font-bold text-slate-900">
             <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-8 w-8 shrink-0 object-contain" />
-            <CollapsibleLabel collapsed={collapsed}>Tech Wiser Consulting</CollapsibleLabel>
+            <CollapsibleLabel collapsed={collapsed} maxWidth={176} className="text-[15px] leading-tight">
+              Tech Wiser Consulting
+            </CollapsibleLabel>
           </Link>
         </div>
         {renderNavAndFooter(undefined, collapsed)}
