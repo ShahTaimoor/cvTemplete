@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 import { protect } from '../middleware/auth.js';
 import { uploadImage, uploadReceipt, isCloudinaryConfigured } from '../services/cloudinaryService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -99,14 +100,21 @@ const handleImageUpload = (cloudUploader) =>
     }
 
     try {
+      // Every upload is re-encoded as WebP (smaller files, same look). The
+      // original is replaced by the .webp before it goes to Cloudinary/disk.
+      const webpPath = path.join(uploadDir, `${uuidv4()}.webp`);
+      await sharp(req.file.path, { animated: true }).rotate().webp({ quality: 82 }).toFile(webpPath);
+      fs.unlinkSync(req.file.path);
+
       if (isCloudinaryConfigured()) {
-        const url = await cloudUploader(req.file.path);
-        fs.unlinkSync(req.file.path);
+        const url = await cloudUploader(webpPath);
+        fs.unlinkSync(webpPath);
         return res.json({ url });
       }
-      const localUrl = `/uploads/${req.file.filename}`;
+      const localUrl = `/uploads/${path.basename(webpPath)}`;
       res.json({ url: localUrl, note: 'Local storage — configure Cloudinary for production' });
     } catch (err) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
       res.status(500).json({ message: err.message });
     }
   });

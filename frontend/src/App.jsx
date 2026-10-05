@@ -25,6 +25,7 @@ import CoverLetterPage from './pages/CoverLetterPage';
 import AdminPurchaseRequestsPage from './pages/AdminPurchaseRequestsPage';
 import AdminPaymentSettingsPage from './pages/AdminPaymentSettingsPage';
 import AdminFreePeriodPage from './pages/AdminFreePeriodPage';
+import AdminReviewsPage from './pages/AdminReviewsPage';
 
 function PageTransition({ children }) {
   return (
@@ -142,6 +143,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute requireSuperAdmin>
                 <PageTransition><AdminFreePeriodPage /></PageTransition>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reviews"
+            element={
+              <ProtectedRoute requireSuperAdmin>
+                <PageTransition><AdminReviewsPage /></PageTransition>
               </ProtectedRoute>
             }
           />

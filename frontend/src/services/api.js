@@ -161,6 +161,13 @@ export const adminAPI = {
   createPaymentMethod: (data) => api.post('/admin/payment-methods', data),
   updatePaymentMethod: (id, data) => api.put(`/admin/payment-methods/${id}`, data),
   deletePaymentMethod: (id) => api.delete(`/admin/payment-methods/${id}`),
+  reviews: (status) => api.get('/admin/reviews', { params: { status } }),
+  reviewCount: () => api.get('/admin/reviews/count'),
+  createReview: (data) => api.post('/admin/reviews', data),
+  updateReview: (id, data) => api.put(`/admin/reviews/${id}`, data),
+  approveReview: (id) => api.post(`/admin/reviews/${id}/approve`),
+  rejectReview: (id) => api.post(`/admin/reviews/${id}/reject`),
+  deleteReview: (id) => api.delete(`/admin/reviews/${id}`),
 };
 
 export const uploadAPI = {
@@ -178,6 +185,11 @@ export const uploadAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+};
+
+export const reviewAPI = {
+  list: () => api.get('/reviews'),
+  submit: (data) => api.post('/reviews', data),
 };
 
 export const publicAPI = {

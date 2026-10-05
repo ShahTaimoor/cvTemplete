@@ -8,6 +8,7 @@ import PaletteDotCycleIcon from '../components/common/PaletteDotCycleIcon';
 import DownloadBounceIcon from '../components/common/DownloadBounceIcon';
 import ShieldCheckDrawIcon from '../components/common/ShieldCheckDrawIcon';
 import SparklesTwinkleIcon from '../components/common/SparklesTwinkleIcon';
+import ReviewsSection from '../components/reviews/ReviewsSection';
 import { DURATION, EASE } from '../lib/motion';
 
 const features = [
@@ -321,6 +322,8 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </section>
+
+      <ReviewsSection />
 
       <section className="border-t border-slate-200 bg-brand-600">
         <motion.div

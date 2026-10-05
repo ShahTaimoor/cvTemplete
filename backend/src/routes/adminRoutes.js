@@ -3,6 +3,8 @@ import User from '../models/User.js';
 import PurchaseRequest from '../models/PurchaseRequest.js';
 import PaymentMethod from '../models/PaymentMethod.js';
 import FreePeriod from '../models/FreePeriod.js';
+import Review from '../models/Review.js';
+import { readReviewBody } from './reviewRoutes.js';
 import { PLANS } from '../config/plans.js';
 import { clearFreePeriodCache, publicFreePeriod } from '../utils/freePeriod.js';
 import { protect, requireSuperAdmin } from '../middleware/auth.js';
@@ -208,6 +210,51 @@ router.delete('/payment-methods/:id', asyncHandler(async (req, res) => {
   const method = await PaymentMethod.findByIdAndDelete(req.params.id);
   if (!method) return res.status(404).json({ message: 'Payment method not found' });
   res.json({ message: 'Payment method deleted' });
+}));
+
+// ---- Reviews (testimonials) ----
+
+// ?status=pending (default) | approved | rejected | all
+router.get('/reviews', asyncHandler(async (req, res) => {
+  const { status = 'pending' } = req.query;
+  const filter = STATUSES.includes(status) ? { status } : {};
+  const reviews = await Review.find(filter)
+    .sort({ createdAt: -1 })
+    .populate('user', 'name email');
+  res.json({ reviews });
+}));
+
+router.get('/reviews/count', asyncHandler(async (_req, res) => {
+  res.json({ pending: await Review.countDocuments({ status: 'pending' }) });
+}));
+
+// Admin adds a review directly — published straight away.
+router.post('/reviews', asyncHandler(async (req, res) => {
+  const { data, error } = readReviewBody(req.body);
+  if (error) return res.status(400).json({ message: error });
+  const review = await Review.create({ ...data, status: 'approved' });
+  res.status(201).json({ review });
+}));
+
+router.put('/reviews/:id', asyncHandler(async (req, res) => {
+  const { data, error } = readReviewBody(req.body);
+  if (error) return res.status(400).json({ message: error });
+  const review = await Review.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+  if (!review) return res.status(404).json({ message: 'Review not found' });
+  res.json({ review });
+}));
+
+router.post('/reviews/:id/:action(approve|reject)', asyncHandler(async (req, res) => {
+  const status = req.params.action === 'approve' ? 'approved' : 'rejected';
+  const review = await Review.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  if (!review) return res.status(404).json({ message: 'Review not found' });
+  res.json({ review });
+}));
+
+router.delete('/reviews/:id', asyncHandler(async (req, res) => {
+  const review = await Review.findByIdAndDelete(req.params.id);
+  if (!review) return res.status(404).json({ message: 'Review not found' });
+  res.json({ message: 'Review deleted' });
 }));
 
 export default router;

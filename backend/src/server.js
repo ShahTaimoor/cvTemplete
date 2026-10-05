@@ -25,6 +25,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 import printRoutes from './routes/printRoutes.js';
 import coverLetterRoutes from './routes/coverLetterRoutes.js';
 
@@ -116,6 +117,7 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use('/api/print', printRoutes);
 app.use('/api/cover-letters', coverLetterRoutes);
 
