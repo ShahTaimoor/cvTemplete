@@ -34,8 +34,8 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-bold text-slate-900">
-          <img src="/logo.png" alt="ResumeForge" className="h-9 w-9 object-contain shrink-0" />
-          ResumeForge
+          <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-9 w-9 object-contain shrink-0" />
+          Tech Wiser Consulting
         </Link>
         <nav className="flex items-center gap-2 sm:gap-6 text-sm font-medium">
           <Link to="/pricing" className="text-slate-600 hover:text-brand-600 px-2 py-1">

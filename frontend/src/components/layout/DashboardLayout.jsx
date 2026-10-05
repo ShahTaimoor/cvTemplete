@@ -360,8 +360,8 @@ export default function DashboardLayout({ children, fullHeight = false }) {
       >
         <div className={`flex h-16 items-center border-b border-slate-200 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
           <Link to="/dashboard" className="flex min-w-0 items-center gap-2 font-bold text-slate-900">
-            <img src="/logo.png" alt="ResumeForge" className="h-8 w-8 shrink-0 object-contain" />
-            <CollapsibleLabel collapsed={collapsed}>ResumeForge</CollapsibleLabel>
+            <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-8 w-8 shrink-0 object-contain" />
+            <CollapsibleLabel collapsed={collapsed}>Tech Wiser Consulting</CollapsibleLabel>
           </Link>
         </div>
         {renderNavAndFooter(undefined, collapsed)}
@@ -405,8 +405,8 @@ export default function DashboardLayout({ children, fullHeight = false }) {
                   className="flex items-center gap-2 font-bold text-slate-900"
                   onClick={() => setMobileNavOpen(false)}
                 >
-                  <img src="/logo.png" alt="ResumeForge" className="h-8 w-8 object-contain shrink-0" />
-                  ResumeForge
+                  <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-8 w-8 object-contain shrink-0" />
+                  Tech Wiser Consulting
                 </Link>
                 <button
                   type="button"
@@ -434,8 +434,8 @@ export default function DashboardLayout({ children, fullHeight = false }) {
             <HamburgerIcon open={mobileNavOpen} />
           </button>
           <Link to="/dashboard" className="font-bold text-slate-900 flex items-center gap-2">
-            <img src="/logo.png" alt="ResumeForge" className="h-6 w-6 object-contain shrink-0" />
-            ResumeForge
+            <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-6 w-6 object-contain shrink-0" />
+            Tech Wiser Consulting
           </Link>
           <Link to="/pricing" className="text-sm text-brand-600 font-medium">
             Plans

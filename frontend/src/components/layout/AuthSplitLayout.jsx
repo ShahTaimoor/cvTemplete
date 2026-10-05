@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FileText, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 const AUTH_IMAGE =
   'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=1400&q=80';
@@ -15,10 +15,8 @@ export default function AuthSplitLayout({ children, title, subtitle }) {
     <div className="min-h-screen flex flex-col lg:flex-row bg-white">
       <div className="w-full lg:w-[min(480px,42%)] xl:w-[520px] shrink-0 flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-10 lg:py-14">
         <Link to="/" className="flex items-center gap-2 font-bold text-lg text-slate-900 mb-10">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-            <FileText size={20} />
-          </span>
-          ResumeForge
+          <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-9 w-9 object-contain shrink-0" />
+          Tech Wiser Consulting
         </Link>
 
         <div className="mb-8">

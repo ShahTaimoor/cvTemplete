@@ -252,7 +252,7 @@ export default function LandingPage() {
               Build a résumé that earns trust
             </motion.h1>
             <motion.p variants={heroItem} className="text-lg text-slate-600 mt-6 max-w-xl leading-relaxed">
-              ResumeForge pairs recruiter-ready templates with real-time preview and transparent pricing —
+              Tech Wiser Consulting pairs recruiter-ready templates with real-time preview and transparent pricing —
               trusted by professionals across Pakistan and the Gulf. Starting free, from Rs. 150/month (PKR).
             </motion.p>
             <motion.div variants={heroItem} className="flex flex-wrap gap-3 mt-10">
