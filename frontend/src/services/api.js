@@ -193,6 +193,7 @@ export const reviewAPI = {
 };
 
 export const publicAPI = {
+  stats: () => api.get('/public/stats'),
   share: (token) => api.get(`/public/share/${token}`),
   shareCoverLetter: (token) => api.get(`/public/share/cover-letter/${token}`),
 };

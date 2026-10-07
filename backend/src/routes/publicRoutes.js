@@ -3,6 +3,7 @@ import Resume from '../models/Resume.js';
 import CoverLetter from '../models/CoverLetter.js';
 import Template from '../models/Template.js';
 import AnalyticsEvent from '../models/AnalyticsEvent.js';
+import User from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = express.Router();
@@ -20,6 +21,10 @@ const router = express.Router();
 const recentResumeViews = new Map(); // resumeId -> last-logged timestamp
 const recentCoverLetterViews = new Map(); // coverLetterId -> last-logged timestamp
 const VIEW_DEDUPE_MS = 2000;
+
+router.get('/stats', asyncHandler(async (_req, res) => {
+  res.json({ totalUsers: await User.countDocuments() });
+}));
 
 router.get('/share/:token', asyncHandler(async (req, res) => {
   const resume = await Resume.findOne({
