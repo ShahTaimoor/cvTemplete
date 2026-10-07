@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import UserCountBadge from '../components/common/UserCountBadge';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -335,7 +336,10 @@ export default function DashboardPage() {
           className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8"
         >
           <div>
-            <p className="text-sm font-semibold text-brass-ink mb-1">Dashboard</p>
+            <div className="flex items-center gap-3 mb-1">
+              <p className="text-sm font-semibold text-brass-ink">Dashboard</p>
+              <UserCountBadge />
+            </div>
             <h1
               className="text-2xl sm:text-3xl font-medium text-slate-900 tracking-tight"
               style={{ fontFamily: 'var(--font-display)' }}

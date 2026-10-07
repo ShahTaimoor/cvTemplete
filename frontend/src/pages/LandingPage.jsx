@@ -9,7 +9,6 @@ import DownloadBounceIcon from '../components/common/DownloadBounceIcon';
 import ShieldCheckDrawIcon from '../components/common/ShieldCheckDrawIcon';
 import SparklesTwinkleIcon from '../components/common/SparklesTwinkleIcon';
 import ReviewsSection from '../components/reviews/ReviewsSection';
-import { publicAPI } from '../services/api';
 import { DURATION, EASE } from '../lib/motion';
 
 const features = [
@@ -153,10 +152,6 @@ export default function LandingPage() {
       return false;
     }
   });
-  const [totalUsers, setTotalUsers] = useState(null);
-  useEffect(() => {
-    publicAPI.stats().then(({ data }) => setTotalUsers(data.totalUsers)).catch(() => {});
-  }, []);
   const [heroVisible, setHeroVisible] = useState(heroSeen);
   useEffect(() => {
     if (!heroSeen) setHeroVisible(true);
@@ -284,11 +279,6 @@ export default function LandingPage() {
                 Pakistan, the Gulf, and beyond.
               </p>
             </motion.div>
-            {totalUsers > 0 && (
-              <motion.p variants={heroItem} className="mt-4 text-sm text-slate-600">
-                <span className="font-semibold text-graphite">{totalUsers.toLocaleString('en-US')}</span> users have already joined
-              </motion.p>
-            )}
           </motion.div>
         </div>
       </section>

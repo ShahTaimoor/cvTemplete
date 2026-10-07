@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { LogOut } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { logoutUser } from '../../store/authSlice';
+import UserCountBadge from '../common/UserCountBadge';
 import MotionIcon from '../common/MotionIcon';
 
 export default function Navbar() {
@@ -39,6 +40,7 @@ export default function Navbar() {
             Tech Wiser<br className="sm:hidden" /> Consulting
           </span>
         </Link>
+        <UserCountBadge className="ml-auto mr-2 sm:mr-6" />
         <nav className="flex items-center gap-0.5 sm:gap-6 text-[13px] sm:text-sm font-medium whitespace-nowrap">
           {user ? (
             <>
