@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from './components/layout/Navbar';
@@ -16,7 +16,6 @@ import DashboardPage from './pages/DashboardPage';
 import ResumesPage from './pages/ResumesPage';
 import CoverLettersPage from './pages/CoverLettersPage';
 import BuilderPage from './pages/BuilderPage';
-import PricingPage from './pages/PricingPage';
 import SharePage from './pages/SharePage';
 import CoverLetterSharePage from './pages/CoverLetterSharePage';
 import PrintPage from './pages/PrintPage';
@@ -77,7 +76,7 @@ function AppRoutes() {
           <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
           <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
           <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
-          <Route path="/pricing" element={<PageTransition><PricingPage /></PageTransition>} />
+          <Route path="/pricing" element={<Navigate to="/dashboard" replace />} />
           <Route path="/share/:token" element={<PageTransition><SharePage /></PageTransition>} />
           <Route path="/share/cover-letter/:token" element={<PageTransition><CoverLetterSharePage /></PageTransition>} />
           <Route path="/print/resume/:id" element={<PrintPage />} />

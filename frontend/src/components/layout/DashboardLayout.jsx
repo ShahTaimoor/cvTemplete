@@ -9,7 +9,6 @@ import { adminAPI } from '../../services/api';
 import { overlayFade, drawerPanel, DURATION, EASE } from '../../lib/motion';
 import HamburgerIcon from '../common/HamburgerIcon';
 import DashboardGridIcon from '../common/DashboardGridIcon';
-import CreditCardShineIcon from '../common/CreditCardShineIcon';
 import CrownSparkleIcon from '../common/CrownSparkleIcon';
 import LogOutSlideIcon from '../common/LogOutSlideIcon';
 
@@ -48,7 +47,6 @@ const NAV = [
   { to: '/dashboard', label: 'My Dashboard', icon: DashboardGridIcon },
   { to: '/resumes', label: 'My Resumes', icon: FileTextNavIcon },
   { to: '/cover-letters', label: 'My Cover Letters', icon: MailNavIcon },
-  { to: '/pricing', label: 'Plans & Pricing', icon: CreditCardShineIcon },
 ];
 
 // Appended to NAV only for super-admin accounts (see DashboardLayout).
@@ -442,9 +440,6 @@ export default function DashboardLayout({ children, fullHeight = false }) {
           <Link to="/dashboard" className="font-bold text-slate-900 flex items-center gap-2">
             <img src="/wiserlogo.png" alt="Tech Wiser Consulting" className="h-6 w-6 object-contain shrink-0" />
             Tech Wiser Consulting
-          </Link>
-          <Link to="/pricing" className="text-sm text-brand-600 font-medium">
-            Plans
           </Link>
         </header>
         <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1'}>{children}</main>

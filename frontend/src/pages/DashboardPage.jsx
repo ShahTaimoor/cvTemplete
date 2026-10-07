@@ -389,9 +389,6 @@ export default function DashboardPage() {
               </span>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Templates</p>
               <p className="text-3xl font-bold text-slate-900 mt-1">{templates.length || '—'}</p>
-              <Link to="/pricing" className="text-sm text-brand-600 font-medium mt-2 inline-block hover:underline">
-                Upgrade for more
-              </Link>
             </motion.div>
           </motion.div>
         )}

@@ -40,9 +40,6 @@ export default function Navbar() {
           </span>
         </Link>
         <nav className="flex items-center gap-0.5 sm:gap-6 text-[13px] sm:text-sm font-medium whitespace-nowrap">
-          <Link to="/pricing" className="hidden min-[420px]:inline text-slate-600 hover:text-brand-600 px-2 py-1">
-            Pricing
-          </Link>
           {user ? (
             <>
               <Link to="/dashboard" className="text-slate-600 hover:text-brand-600 px-2 py-1">

@@ -27,20 +27,17 @@ export const publicFreePeriod = (fp) => ({
   endsAt: fp?.endsAt || null,
 });
 
-// Returns a plain copy of the user whose subscription reads as Premium while a
-// free period is running (unless they already have a higher plan — there is
-// none above Premium). The stored document is never touched.
+// The app is completely free: every user's subscription reads as Premium. The stored document is never touched.
 export const withFreePeriodPlan = async (user) => {
   if (!user) return user;
   const fp = await getFreePeriod();
   const obj = user.toObject ? user.toObject() : { ...user };
-  if (!isFreePeriodActive(fp)) return obj;
   const top = PLAN_ORDER[PLAN_ORDER.length - 1];
   obj.subscription = {
     ...obj.subscription,
     plan: top,
     freePeriod: true,
-    freePeriodEndsAt: fp.endsAt,
+    freePeriodEndsAt: null,
   };
   return obj;
 };

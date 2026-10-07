@@ -253,7 +253,7 @@ export default function LandingPage() {
               Build a résumé that earns trust
             </motion.h1>
             <motion.p variants={heroItem} className="text-lg text-slate-600 mt-6 max-w-xl leading-relaxed">
-              Tech Wiser Consulting pairs recruiter-ready templates with real-time preview and transparent pricing —
+              Tech Wiser Consulting pairs recruiter-ready templates with real-time preview — completely free —
               trusted by professionals across Pakistan and the Gulf. Starting free, from Rs. 150/month (PKR).
             </motion.p>
             <motion.div variants={heroItem} className="flex flex-wrap gap-3 mt-10">
@@ -268,15 +268,6 @@ export default function LandingPage() {
                 >
                   Start free
                   <ArrowRight size={18} className="ml-2" />
-                </Link>
-              </motion.div>
-              <motion.div
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 350, damping: 18 }}
-              >
-                <Link to="/pricing" className="app-btn-secondary !px-8 !py-3 text-base">
-                  View pricing
                 </Link>
               </motion.div>
             </motion.div>
